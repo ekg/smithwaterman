@@ -1,7 +1,8 @@
 #include <iostream>
-#include "Alignment.h"
-#include "Benchmark.h"
-#include "HashRegion.h"
+#include <string.h>
+//#include "Alignment.h"
+//#include "Benchmark.h"
+//#include "HashRegion.h"
 #include "SmithWatermanGotoh.h"
 #include "BandedSmithWaterman.h"
 
@@ -36,11 +37,12 @@ int main(int argc, char* argv[]) {
 	
 	// define the 20 b:q
 	// ases that matched perfectly
-	HashRegion hr;
-	hr.Begin      = 5;
-	hr.End        = 13;
-	hr.QueryBegin = 0;
-	hr.QueryEnd   = 8;
+	//HashRegion hr;
+	pair< pair<unsigned int, unsigned int>, pair<unsigned int, unsigned int> > hr;
+	hr.first.first   = 5;
+	hr.first.second  = 13;
+	hr.second.first  = 0;
+	hr.second.second = 8;
 
 	// for 76 bp reads, we expect as much as 12 mismatches - however this does not
 	// translate to a bandwidth of 12 * 2 + 1 since most of these will be
@@ -66,27 +68,35 @@ int main(int argc, char* argv[]) {
 	CBandedSmithWaterman bsw(10.0f, -9.0f, 15.0f, 6.66f, bandwidth);
 
 	// start timing the algorithm
-	CBenchmark bench;
-	bench.Start();
+	//CBenchmark bench;
+	//bench.Start();
 
 	// perform NUM_ITERATIONS alignments
-	Alignment bswAl;
-	Alignment swAl;
+	//Alignment bswAl;
+	//Alignment swAl;
+	//   referenceBegin, referenceEnd
+	unsigned int referenceSW, referenceBSW;
+	string cigarSW, cigarBSW;
 	for(unsigned int i = 0; i < NUM_ITERATIONS; i++) {
-	  sw.Align(swAl, pReference, referenceLen, pQuery, queryLen);
-	  bsw.Align(bswAl, pReference, referenceLen, pQuery, queryLen, hr);
+	  sw.Align(referenceSW, cigarSW, pReference, referenceLen, pQuery, queryLen);
+	  bsw.Align(referenceBSW, cigarBSW, pReference, referenceLen, pQuery, queryLen, hr);
 	}
 
 	// stop timing the algorithm
-	bench.Stop();
+	//bench.Stop();
 	
 	// calculate the alignments per second
-	double elapsedWallTime = bench.GetElapsedWallTime();
-	double alignmentsPerSecond = (double)NUM_ITERATIONS / elapsedWallTime;
+	//double elapsedWallTime = bench.GetElapsedWallTime();
+	//double alignmentsPerSecond = (double)NUM_ITERATIONS / elapsedWallTime;
 	
 	// show our results
 	//printf("%d\t%d\n", al.ReferenceBegin,al.QueryBegin);
-	
+
+	printf("Smith-Waterman\n");
+	printf("reference:    %s %3u\n", cigarSW.c_str(), referenceSW);
+	printf("Banded Smith-Waterman\n");
+	printf("reference:    %s %3u\n", cigarBSW.c_str(), referenceBSW);
+	/*  
 	printf("Smith-Waterman\n");
 	printf("reference:    %s %3u %3u\n", swAl.Reference.CData(), swAl.ReferenceBegin, swAl.ReferenceEnd);
         printf("query:        %s %3u %3u\n", swAl.Query.CData(), swAl.QueryBegin, swAl.QueryEnd);
@@ -96,6 +106,7 @@ int main(int argc, char* argv[]) {
 	printf("reference:    %s %3u %3u\n", bswAl.Reference.CData(), bswAl.ReferenceBegin, bswAl.ReferenceEnd);
         printf("query:        %s %3u %3u\n", bswAl.Query.CData(), bswAl.QueryBegin, bswAl.QueryEnd);
         printf("mismatches:   %u\n", bswAl.NumMismatches);
+	*/
 	//printf("alignments/s: %.1f\n\n", alignmentsPerSecond);
 
 	//bench.DisplayTime("BandedSmithWaterman");

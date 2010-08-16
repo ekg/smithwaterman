@@ -3,8 +3,12 @@
 #include <iostream>
 #include <algorithm>
 #include <memory>
-#include "Alignment.h"
+//#include "Alignment.h"
 #include "Mosaik.h"
+#include <stdio.h>
+#include <string.h>
+#include <sstream>
+#include <string>
 
 using namespace std;
 
@@ -18,14 +22,14 @@ public:
 	// destructor
 	~CSmithWatermanGotoh(void);
 	// aligns the query sequence to the reference using the Smith Waterman Gotoh algorithm
-	void Align(Alignment& alignment, const char* s1, const unsigned int s1Length, const char* s2, const unsigned int s2Length);
+	void Align(unsigned int& referenceAl, string& cigarAl, const char* s1, const unsigned int s1Length, const char* s2, const unsigned int s2Length);
 	// enables homo-polymer scoring
 	void EnableHomoPolymerGapPenalty(float hpGapOpenPenalty);
 private:
 	// creates a simple scoring matrix to align the nucleotides and the ambiguity code N
 	void CreateScoringMatrix(void);
 	// corrects the homopolymer gap order for forward alignments
-	static void CorrectHomopolymerGapOrder(Alignment& al);
+	void CorrectHomopolymerGapOrder(const unsigned int numBases, const unsigned int numMismatches);
 	// returns the maximum floating point number
 	static inline float MaxFloats(const float& a, const float& b, const float& c);
 	// our simple scoring matrix

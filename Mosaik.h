@@ -1,7 +1,7 @@
 #pragma once
 
 #ifndef WIN32
-#include "SafeFunctions.h"
+//#include "SafeFunctions.h"
 #endif
 
 // ==============
