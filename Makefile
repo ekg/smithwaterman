@@ -13,9 +13,9 @@ OBJECTS= $(SOURCES:.cpp=.o)
 # compiler options
 # ----------------
 
-#CFLAGS=-Wall -O3
-#LDFLAGS=-Wl,-s
-CFLAGS=-g
+CFLAGS=-Wall -O3
+LDFLAGS=-Wl,-s
+#CFLAGS=-g
 PROGRAM=BandedSmithWaterman
 LIBS=
 

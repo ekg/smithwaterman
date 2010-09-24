@@ -24,8 +24,8 @@ int main(int argc, char* argv[]) {
 	// matched perfectly.
 
 	// define the start and end coordinates of the entire reference region
-	const unsigned int start = 4001;
-	const unsigned int end   = 4136;
+	//const unsigned int start = 4001;
+	//const unsigned int end   = 4136;
 
 	//const unsigned int testStart = atoi(argv[1]);
 	//const unsigned int testEnd = atoi(argv[2]);
@@ -38,11 +38,22 @@ int main(int argc, char* argv[]) {
 	// define the 20 b:q
 	// ases that matched perfectly
 	//HashRegion hr;
+	
+	//=====================================================
+	// defind the hash region
+	// first.first:   reference begin
+	// first.second:  reference end
+	// second.first:  query begin
+	// second.second: query end
+	//=====================================================
+	
 	pair< pair<unsigned int, unsigned int>, pair<unsigned int, unsigned int> > hr;
 	hr.first.first   = 5;
 	hr.first.second  = 13;
 	hr.second.first  = 0;
 	hr.second.second = 8;
+
+	//=====================================================
 
 	// for 76 bp reads, we expect as much as 12 mismatches - however this does not
 	// translate to a bandwidth of 12 * 2 + 1 since most of these will be
@@ -61,7 +72,7 @@ int main(int argc, char* argv[]) {
 	// CPU time: 23.920 s, wall time: 24.012 s (1582.6 alignments/s)
 	// ==============================================================================================
 	//const unsigned int NUM_ITERATIONS = 38000;
-	unsigned int NUM_ITERATIONS = 1;
+	//unsigned int NUM_ITERATIONS = 1;
 
 	// create a new Smith-Waterman alignment object
 	CSmithWatermanGotoh sw(10.0f, -9.0f, 15.0f, 6.66f);
@@ -77,10 +88,10 @@ int main(int argc, char* argv[]) {
 	//   referenceBegin, referenceEnd
 	unsigned int referenceSW, referenceBSW;
 	string cigarSW, cigarBSW;
-	for(unsigned int i = 0; i < NUM_ITERATIONS; i++) {
+	//for(unsigned int i = 0; i < NUM_ITERATIONS; i++) {
 	  sw.Align(referenceSW, cigarSW, pReference, referenceLen, pQuery, queryLen);
 	  bsw.Align(referenceBSW, cigarBSW, pReference, referenceLen, pQuery, queryLen, hr);
-	}
+	//}
 
 	// stop timing the algorithm
 	//bench.Stop();
