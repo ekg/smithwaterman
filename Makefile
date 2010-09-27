@@ -6,7 +6,7 @@
 # ----------------------------------
 # define our source and object files
 # ----------------------------------
-SOURCES= SWMain.cpp BandedSmithWaterman.cpp SmithWatermanGotoh.cpp
+SOURCES= smithwaterman.cpp BandedSmithWaterman.cpp SmithWatermanGotoh.cpp
 OBJECTS= $(SOURCES:.cpp=.o)
 
 # ----------------
@@ -16,7 +16,7 @@ OBJECTS= $(SOURCES:.cpp=.o)
 CFLAGS=-Wall -O3
 LDFLAGS=-Wl,-s
 #CFLAGS=-g
-PROGRAM=BandedSmithWaterman
+PROGRAM=smithwaterman
 LIBS=
 
 all: $(PROGRAM)
