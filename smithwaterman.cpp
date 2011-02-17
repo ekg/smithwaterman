@@ -1,6 +1,10 @@
 #include <iostream>
 #include <string.h>
+#include <string>
+#include <sstream>
 #include <getopt.h>
+#include <utility>
+#include <vector>
 #include <stdlib.h>
 #include "SmithWatermanGotoh.h"
 #include "BandedSmithWaterman.h"
@@ -16,6 +20,7 @@ void printSummary(void) {
          << "    -g, --gap-open-penalty    the gap open penalty (default 15.0)" << endl
          << "    -e, --gap-extend-penalty  the gap extend penalty (default 6.66)" << endl
          << "    -b, --bandwidth           bandwidth to use (default 0, or non-banded algorithm)" << endl
+         << "    -p, --print-alignment     print out the alignment" << endl
          << endl
          << "When called with literal reference and query sequences, smithwaterman" << endl
          << "prints the cigar match positional string and the match position for the" << endl
@@ -36,29 +41,25 @@ int main (int argc, char** argv) {
     float mismatchScore = -9.0f;
     float gapOpenPenalty = 15.0f;
     float gapExtendPenalty = 6.66f;
-    // CSmithWatermanGotoh::CSmithWatermanGotoh(float matchScore, float mismatchScore, float gapOpenPenalty, float gapExtendPenalty)
+    
+    bool print_alignment = false;
 
     while (true) {
         static struct option long_options[] =
         {
-            /* These options set a flag. */
-            //{"verbose", no_argument,       &verbose_flag, 1},
-            //{"brief",   no_argument,       &verbose_flag, 0},
             {"help", no_argument, 0, 'h'},
             {"match-score",  required_argument, 0, 'm'},
             {"mismatch-score",  required_argument, 0, 'n'},
             {"gap-open-penalty",  required_argument, 0, 'g'},
             {"gap-extend-penalty",  required_argument, 0, 'e'},
-            //{"length",  no_argument, &printLength, true},
+            {"print-alignment",  required_argument, 0, 'p'},
             {0, 0, 0, 0}
         };
-        /* getopt_long stores the option index here. */
         int option_index = 0;
 
-        c = getopt_long (argc, argv, "hm:n:g:r:",
+        c = getopt_long (argc, argv, "hpm:n:g:r:e:",
                          long_options, &option_index);
 
-      /* Detect the end of the options. */
           if (c == -1)
             break;
  
@@ -88,6 +89,10 @@ int main (int argc, char** argv) {
  
           case 'e':
             gapExtendPenalty = atof(optarg);
+            break;
+
+          case 'p':
+            print_alignment = true;
             break;
  
           case 'h':
@@ -141,6 +146,73 @@ int main (int argc, char** argv) {
     }
 
     printf("%s %3u\n", cigar.c_str(), referencePos);
+
+    // optionally print out the alignment
+    if (print_alignment) {
+        int alignmentLength = 0;
+        int len;
+        string slen;
+        vector<pair<int, char> > cigarData;
+        for (string::iterator c = cigar.begin(); c != cigar.end(); ++c) {
+            switch (*c) {
+                case 'I':
+                    len = atoi(slen.c_str());
+                    slen.clear();
+                    cigarData.push_back(make_pair(len, *c));
+                    break;
+                case 'D':
+                    len = atoi(slen.c_str());
+                    alignmentLength += len;
+                    slen.clear();
+                    cigarData.push_back(make_pair(len, *c));
+                    break;
+                case 'M':
+                    len = atoi(slen.c_str());
+                    alignmentLength += len;
+                    slen.clear();
+                    cigarData.push_back(make_pair(len, *c));
+                    break;
+                case 'S':
+                    len = atoi(slen.c_str());
+                    alignmentLength += len;
+                    slen.clear();
+                    cigarData.push_back(make_pair(len, *c));
+                    break;
+                default:
+                    len = 0;
+                    slen += *c;
+                    break;
+            }
+        }
+
+        string gapped_ref = string(reference).substr(referencePos, alignmentLength);
+        string gapped_query = string(query);
+
+        int refpos = 0;
+        int readpos = 0;
+        for (vector<pair<int, char> >::iterator c = cigarData.begin(); c != cigarData.end(); ++c) {
+            int len = c->first;
+            switch (c->second) {
+                case 'I':
+                    gapped_ref.insert(refpos, string(len, '-'));
+                    readpos += len;
+                    break;
+                case 'D':
+                    gapped_query.insert(readpos, string(len, '-'));
+                    refpos += len;
+                    break;
+                case 'M':
+                case 'S':
+                    readpos += len;
+                    refpos += len;
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        cout << gapped_ref << endl << gapped_query << endl;
+    }
 
 	return 0;
 
