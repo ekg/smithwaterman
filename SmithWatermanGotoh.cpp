@@ -306,6 +306,10 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 	unsigned int m = 0, d = 0, i = 0;
 	bool dashRegion = false;
 	ostringstream oCigar (ostringstream::out);
+	
+	if ( cj != 0 )
+		oCigar << cj << 'S';
+	
 	for ( unsigned int j = 0; j < alLength; j++ ) {
 		// m
 		if ( ( mReversedAnchor[j] != GAP ) && ( mReversedQuery[j] != GAP ) ) {
@@ -338,6 +342,9 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 	if      ( m != 0 ) oCigar << m << 'M';
 	else if ( d != 0 ) oCigar << d << 'D';
 	else if ( i != 0 ) oCigar << i << 'I';
+
+	if ( BestColumn != s2Length )
+		oCigar << s2Length - BestColumn << 'S';
 
 	cigarAl = oCigar.str();
 	

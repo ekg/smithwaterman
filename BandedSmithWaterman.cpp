@@ -614,10 +614,14 @@ void CBandedSmithWaterman::Traceback(unsigned int& referenceAl, string& cigarAl,
 	//alignment.QueryLength	= alignment.QueryEnd - alignment.QueryBegin + 1;
 	//alignment.NumMismatches = numMismatches;
 
-	unsigned int alLength = strlen(mReversedAnchor);
+	const unsigned int alLength = strlen(mReversedAnchor);
 	unsigned int m = 0, d = 0, i = 0;
 	bool dashRegion = false;
 	ostringstream oCigar;
+
+	if ( previousRow != 0 )
+		oCigar << previousRow << 'S';
+
 	for ( unsigned int j = 0; j < alLength; j++ ) {
 		// m
 		if ( ( mReversedAnchor[j] != GAP ) && ( mReversedQuery[j] != GAP ) ) {
@@ -652,6 +656,9 @@ void CBandedSmithWaterman::Traceback(unsigned int& referenceAl, string& cigarAl,
 	if      ( m != 0 ) oCigar << m << 'M';
 	else if ( d != 0 ) oCigar << d << 'D';
 	else if ( i != 0 ) oCigar << i << 'I';
+
+	if ( ( bestRow + 1 ) != s2Length )
+		oCigar << s2Length - bestRow - 1 << 'S';
 
 	cigarAl = oCigar.str();
 	

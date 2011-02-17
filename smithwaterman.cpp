@@ -129,10 +129,10 @@ int main (int argc, char** argv) {
 	// create a new Smith-Waterman alignment object
     if (bandwidth > 0) {
         pair< pair<unsigned int, unsigned int>, pair<unsigned int, unsigned int> > hr;
-        hr.first.first   = 5;
-        hr.first.second  = 13;
-        hr.second.first  = 0;
-        hr.second.second = 8;
+        hr.first.first   = 2;
+        hr.first.second  = 18;
+        hr.second.first  = 1;
+        hr.second.second = 17;
         CBandedSmithWaterman bsw(matchScore, mismatchScore, gapOpenPenalty, gapExtendPenalty, bandwidth);
         bsw.Align(referencePos, cigar, reference, referenceLen, query, queryLen, hr);
     } else {

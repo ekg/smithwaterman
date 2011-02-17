@@ -25,7 +25,7 @@ all: $(PROGRAM)
 
 $(PROGRAM): $(OBJECTS)
 	@echo "  * linking $(PROGRAM)"
-	@$(CXX) $(LDFLAGS) $(FLAGS) -o $@ $^ $(LIBS)
+	@$(CXX) $(LDFLAGS) $(CFLAGS) -o $@ $^ $(LIBS)
 
 .PHONY: clean
 
