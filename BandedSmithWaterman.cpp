@@ -195,8 +195,6 @@ void CBandedSmithWaterman::Align(unsigned int& referenceAl, string& cigarAl, con
 
 	Traceback(referenceAl, cigarAl, s1, s2, bestRow, bestColumn, rowOffset, columnOffset);
 
-    stablyLeftAlign(referenceAl, cigarAl, s1, s2);
-
 }
 
 // calculates the score during the forward algorithm

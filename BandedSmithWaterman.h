@@ -10,7 +10,6 @@
 #include <stdio.h>
 #include <sstream>
 #include <string>
-#include "LeftAlign.h"
 
 using namespace std;
 
