@@ -39,16 +39,16 @@ CSmithWatermanGotoh::~CSmithWatermanGotoh(void) {
 }
 
 // aligns the query sequence to the reference using the Smith Waterman Gotoh algorithm
-void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, const char* s1, const unsigned int s1Length, const char* s2, const unsigned int s2Length) {
+void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, const string& s1, const string& s2) {
 
-	if((s1Length == 0) || (s2Length == 0)) {
+	if((s1.length() == 0) || (s2.length() == 0)) {
 		cout << "ERROR: Found a read with a zero length." << endl;
 		exit(1);
 	}
 
-	unsigned int referenceLen      = s1Length + 1;
-	unsigned int queryLen          = s2Length + 1;
-	unsigned int sequenceSumLength = s1Length + s2Length;
+	unsigned int referenceLen      = s1.length() + 1;
+	unsigned int queryLen          = s2.length() + 1;
+	unsigned int sequenceSumLength = s1.length() + s2.length();
 
 	// reinitialize our matrices
 
@@ -88,10 +88,10 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 	//
 
 	// reinitialize our query-dependent arrays
-	if(s2Length > mCurrentQuerySize) {
+	if(s2.length() > mCurrentQuerySize) {
 
 		// calculate the new query array size
-		mCurrentQuerySize = s2Length;
+		mCurrentQuerySize = s2.length();
 
 		// delete the old arrays
 		if(mQueryGapScores) delete [] mQueryGapScores;
@@ -343,13 +343,16 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 	else if ( d != 0 ) oCigar << d << 'D';
 	else if ( i != 0 ) oCigar << i << 'I';
 
-	if ( BestColumn != s2Length )
-		oCigar << s2Length - BestColumn << 'S';
+	if ( BestColumn != s2.length() )
+		oCigar << s2.length() - BestColumn << 'S';
 
 	cigarAl = oCigar.str();
 	
 	// fix the gap order
 	CorrectHomopolymerGapOrder(alLength, numMismatches);
+
+    stablyLeftAlign(referenceAl, cigarAl, s1, s2);
+
 }
 
 // creates a simple scoring matrix to align the nucleotides and the ambiguity code N

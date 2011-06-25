@@ -9,6 +9,7 @@
 #include <string.h>
 #include <sstream>
 #include <string>
+#include "LeftAlign.h"
 
 using namespace std;
 
@@ -22,7 +23,7 @@ public:
 	// destructor
 	~CSmithWatermanGotoh(void);
 	// aligns the query sequence to the reference using the Smith Waterman Gotoh algorithm
-	void Align(unsigned int& referenceAl, string& cigarAl, const char* s1, const unsigned int s1Length, const char* s2, const unsigned int s2Length);
+	void Align(unsigned int& referenceAl, string& cigarAl, const string& s1, const string& s2);
 	// enables homo-polymer scoring
 	void EnableHomoPolymerGapPenalty(float hpGapOpenPenalty);
 private:

@@ -32,8 +32,8 @@ int main (int argc, char** argv) {
 
     int c;
 
-    char* reference;
-    char* query;
+    string reference;
+    string query;
 
     int bandwidth = 0;
 
@@ -53,11 +53,12 @@ int main (int argc, char** argv) {
             {"gap-open-penalty",  required_argument, 0, 'g'},
             {"gap-extend-penalty",  required_argument, 0, 'e'},
             {"print-alignment",  required_argument, 0, 'p'},
+            {"bandwidth", required_argument, 0, 'b'},
             {0, 0, 0, 0}
         };
         int option_index = 0;
 
-        c = getopt_long (argc, argv, "hpm:n:g:r:e:",
+        c = getopt_long (argc, argv, "hpm:n:g:r:e:b:",
                          long_options, &option_index);
 
           if (c == -1)
@@ -91,6 +92,10 @@ int main (int argc, char** argv) {
             gapExtendPenalty = atof(optarg);
             break;
 
+          case 'b':
+            bandwidth = atoi(optarg);
+            break;
+
           case 'p':
             print_alignment = true;
             break;
@@ -114,9 +119,9 @@ int main (int argc, char** argv) {
     /* Print any remaining command line arguments (not options). */
     if (optind == argc - 2) {
         //cerr << "fasta file: " << argv[optind] << endl;
-        reference = argv[optind];
+        reference = string(argv[optind]);
         ++optind;
-        query = argv[optind];
+        query = string(argv[optind]);
     } else {
         cerr << "please specify a reference and query sequence" << endl
              << "execute " << argv[0] << " --help for command-line usage" << endl;
@@ -125,9 +130,6 @@ int main (int argc, char** argv) {
 
 	// initialize
 	
-	const unsigned int referenceLen = strlen(reference);
-	const unsigned int queryLen     = strlen(query);
-
 	unsigned int referencePos;
 	string cigar;
 
@@ -139,10 +141,10 @@ int main (int argc, char** argv) {
         hr.second.first  = 1;
         hr.second.second = 17;
         CBandedSmithWaterman bsw(matchScore, mismatchScore, gapOpenPenalty, gapExtendPenalty, bandwidth);
-        bsw.Align(referencePos, cigar, reference, referenceLen, query, queryLen, hr);
+        bsw.Align(referencePos, cigar, reference, query, hr);
     } else {
         CSmithWatermanGotoh sw(matchScore, mismatchScore, gapOpenPenalty, gapExtendPenalty);
-        sw.Align(referencePos, cigar, reference, referenceLen, query, queryLen);
+        sw.Align(referencePos, cigar, reference, query);
     }
 
     printf("%s %3u\n", cigar.c_str(), referencePos);

@@ -56,7 +56,7 @@ CBandedSmithWaterman::~CBandedSmithWaterman(void) {
 }
 
 // aligns the query sequence to the anchor using the Smith Waterman Gotoh algorithm
-void CBandedSmithWaterman::Align(unsigned int& referenceAl, string& cigarAl, const char* s1, const unsigned int s1Length, const char* s2, const unsigned int s2Length, pair< pair<unsigned int, unsigned int>, pair<unsigned int, unsigned int> >& hr) {
+void CBandedSmithWaterman::Align(unsigned int& referenceAl, string& cigarAl, const string& s1, const string& s2, pair< pair<unsigned int, unsigned int>, pair<unsigned int, unsigned int> >& hr) {
 
 
 	
@@ -64,16 +64,16 @@ void CBandedSmithWaterman::Align(unsigned int& referenceAl, string& cigarAl, con
 	hr.first.first    -= rowStart;
 	hr.second.first   -= rowStart;
 	
-	//bool isLegalBandWidth = (s2Length - hr.QueryBegin) > (mBandwidth / 2);
-	//     isLegalBandWidth = isLegalBandWidth && ((s1Length - hr.Begin) > (mBandwidth / 2));
+	//bool isLegalBandWidth = (s2.length() - hr.QueryBegin) > (mBandwidth / 2);
+	//     isLegalBandWidth = isLegalBandWidth && ((s1.length() - hr.Begin) > (mBandwidth / 2));
 
 
 
 	// check the lengths of the input sequences
-	//if( (s1Length <= 0) || (s2Length <= 0) || (s1Length < s2Length) ) {
+	//if( (s1.length() <= 0) || (s2.length() <= 0) || (s1.length() < s2.length()) ) {
 	//	printf("ERROR: An unexpected sequence length was encountered during pairwise alignment.\n");
 	//	printf("Sequence lengths are listed as following:\n");
-	//	printf("1. Reference length: %u\n2. Query length: %u\n", s1Length, s2Length);
+	//	printf("1. Reference length: %u\n2. Query length: %u\n", s1.length(), s2.length());
 		//printf("3. Hash region in reference:%4u-%4u\n", hr.Begin + rowStart, hr.End);
 		//printf("4. Hash region in query:    %4u-%4u\n", hr.QueryBegin + rowStart, hr.QueryEnd);
 	//	exit(1);
@@ -111,7 +111,7 @@ void CBandedSmithWaterman::Align(unsigned int& referenceAl, string& cigarAl, con
 	// Reinitialize the matrices
 	// =========================
 	
-	ReinitializeMatrices(positionType, s1Length, s2Length, hr);
+	ReinitializeMatrices(positionType, s1.length(), s2.length(), hr);
 
 	// =======================================
 	// Banded Smith-Waterman forward algorithm
@@ -136,7 +136,7 @@ void CBandedSmithWaterman::Align(unsigned int& referenceAl, string& cigarAl, con
 		columnNum = 0;
 
 		// columnEnd indicates how many columns which should be dealt with in the current row
-		unsigned int columnEnd = min((mBandwidth - numBlankElements), (s1Length - columnNum + 1) );
+		unsigned int columnEnd = min((mBandwidth - numBlankElements), ((unsigned int) s1.length() - columnNum + 1) );
 		currentQueryGapScore = FLOAT_NEGATIVE_INFINITY;
 		for( unsigned int j = 0; j < columnEnd; j++){
 			float score = CalculateScore(s1, s2, rowNum, columnNum, currentQueryGapScore, rowOffset, columnOffset);
@@ -149,7 +149,7 @@ void CBandedSmithWaterman::Align(unsigned int& referenceAl, string& cigarAl, con
 		columnNum = columnNum - (mBandwidth / 2);
 	}
 	// complete matrix in Banded Smith-Waterman
-	unsigned int completeNum = min((s1Length - columnNum - (mBandwidth / 2)), (s2Length - rowNum));
+	unsigned int completeNum = min((s1.length() - columnNum - (mBandwidth / 2)), (s2.length() - rowNum));
 	//cout << completeNum << endl;
 	for(unsigned int i = 0; i < completeNum; i++, rowNum++){
 		columnNum = columnNum - (mBandwidth / 2);
@@ -170,7 +170,7 @@ void CBandedSmithWaterman::Align(unsigned int& referenceAl, string& cigarAl, con
 	}
 	
 	// lower triangle matrix
-	numBlankElements = min(mBandwidth, (s2Length - rowNum));
+	numBlankElements = min(mBandwidth, ((unsigned int) s2.length() - rowNum));
 	columnNum = columnNum - (mBandwidth / 2);
 	for(unsigned int i = 0; numBlankElements > 0; i++, rowNum++, numBlankElements--) {
 
@@ -178,7 +178,7 @@ void CBandedSmithWaterman::Align(unsigned int& referenceAl, string& cigarAl, con
 		// columnEnd indicates how many columns which should be dealt with
 		currentQueryGapScore = FLOAT_NEGATIVE_INFINITY;
 
-		for( unsigned int j = columnNum; j < s1Length; j++){
+		for( unsigned int j = columnNum; j < s1.length(); j++){
 			float score = CalculateScore(s1, s2, rowNum, columnNum, currentQueryGapScore, rowOffset, columnOffset);
 			UpdateBestScore(bestRow, bestColumn, bestScore, rowNum, columnNum, score);
 			//cout << s1[columnNum] << s2[rowNum] << score << endl;
@@ -193,11 +193,14 @@ void CBandedSmithWaterman::Align(unsigned int& referenceAl, string& cigarAl, con
 	// Banded Smith-Waterman backtrace algorithm
 	// =========================================
 
-	Traceback(referenceAl, cigarAl, s1, s2, s2Length, bestRow, bestColumn, rowOffset, columnOffset);
+	Traceback(referenceAl, cigarAl, s1, s2, bestRow, bestColumn, rowOffset, columnOffset);
+
+    stablyLeftAlign(referenceAl, cigarAl, s1, s2);
+
 }
 
 // calculates the score during the forward algorithm
-float CBandedSmithWaterman::CalculateScore(const char* s1, const char* s2, const unsigned int rowNum, const unsigned int columnNum, float& currentQueryGapScore, const unsigned int rowOffset, const unsigned int columnOffset) {
+float CBandedSmithWaterman::CalculateScore(const string& s1, const string& s2, const unsigned int rowNum, const unsigned int columnNum, float& currentQueryGapScore, const unsigned int rowOffset, const unsigned int columnOffset) {
 
 	// initialize
 	const unsigned int row      = rowNum + rowOffset;
@@ -513,7 +516,7 @@ void CBandedSmithWaterman::ReinitializeMatrices(const PositionType& positionType
 }
 
 // performs the backtrace algorithm
-void CBandedSmithWaterman::Traceback(unsigned int& referenceAl, string& cigarAl, const char* s1, const char* s2, const unsigned int s2Length, unsigned int bestRow, unsigned int bestColumn, const unsigned int rowOffset, const unsigned int columnOffset){
+void CBandedSmithWaterman::Traceback(unsigned int& referenceAl, string& cigarAl, const string& s1, const string& s2, unsigned int bestRow, unsigned int bestColumn, const unsigned int rowOffset, const unsigned int columnOffset){
 
 
 	unsigned int currentRow		 = bestRow;
@@ -603,8 +606,8 @@ void CBandedSmithWaterman::Traceback(unsigned int& referenceAl, string& cigarAl,
 	referenceAl  = previousColumn;
 	/*  
 	if(alignment.IsReverseComplement){
-		alignment.QueryBegin = s2Length - bestRow - 1; 
-		alignment.QueryEnd   = s2Length - previousRow - 1;
+		alignment.QueryBegin = s2.length() - bestRow - 1; 
+		alignment.QueryEnd   = s2.length() - previousRow - 1;
 	} else {
 		alignment.QueryBegin = previousRow; 
 		alignment.QueryEnd   = bestRow;
@@ -657,8 +660,8 @@ void CBandedSmithWaterman::Traceback(unsigned int& referenceAl, string& cigarAl,
 	else if ( d != 0 ) oCigar << d << 'D';
 	else if ( i != 0 ) oCigar << i << 'I';
 
-	if ( ( bestRow + 1 ) != s2Length )
-		oCigar << s2Length - bestRow - 1 << 'S';
+	if ( ( bestRow + 1 ) != s2.length() )
+		oCigar << s2.length() - bestRow - 1 << 'S';
 
 	cigarAl = oCigar.str();
 	

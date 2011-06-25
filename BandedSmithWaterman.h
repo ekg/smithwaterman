@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <sstream>
 #include <string>
+#include "LeftAlign.h"
 
 using namespace std;
 
@@ -32,12 +33,12 @@ public:
 	// destructor
 	~CBandedSmithWaterman(void);
 	// aligns the query sequence to the anchor using the Smith Waterman Gotoh algorithm
-	void Align(unsigned int& referenceAl, string& stringAl, const char* s1, const unsigned int s1Length, const char* s2, const unsigned int s2Length, pair< pair<unsigned int, unsigned int>, pair<unsigned int, unsigned int> >& hr);
+	void Align(unsigned int& referenceAl, string& stringAl, const string& s1, const string& s2, pair< pair<unsigned int, unsigned int>, pair<unsigned int, unsigned int> >& hr);
 	// enables homo-polymer scoring
 	void EnableHomoPolymerGapPenalty(float hpGapOpenPenalty);
 private:
 	// calculates the score during the forward algorithm
-	float CalculateScore(const char* s1, const char* s2, const unsigned int rowNum, const unsigned int columnNum, float& currentQueryGapScore, const unsigned int rowOffset, const unsigned int columnOffset);
+	float CalculateScore(const string& s1, const string& s2, const unsigned int rowNum, const unsigned int columnNum, float& currentQueryGapScore, const unsigned int rowOffset, const unsigned int columnOffset);
 	// creates a simple scoring matrix to align the nucleotides and the ambiguity code N
 	void CreateScoringMatrix(void);
 	// corrects the homopolymer gap order for forward alignments
@@ -47,7 +48,7 @@ private:
 	// reinitializes the matrices
 	void ReinitializeMatrices(const PositionType& positionType, const unsigned int& s1Length, const unsigned int& s2Length, const pair< pair<unsigned int, unsigned int>, pair<unsigned int, unsigned int> > hr);
 	// performs the backtrace algorithm
-	void Traceback(unsigned int& referenceAl, string& stringAl, const char* s1, const char* s2, const unsigned int s2Length, unsigned int bestRow, unsigned int bestColumn, const unsigned int rowOffset, const unsigned int columnOffset);
+	void Traceback(unsigned int& referenceAl, string& stringAl, const string& s1, const string& s2, unsigned int bestRow, unsigned int bestColumn, const unsigned int rowOffset, const unsigned int columnOffset);
 	// updates the best score during the forward algorithm
 	inline void UpdateBestScore(unsigned int& bestRow, unsigned int& bestColumn, float& bestScore, const unsigned int rowNum, const unsigned int columnNum, const float score);
 	// our simple scoring matrix
