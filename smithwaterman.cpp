@@ -18,6 +18,7 @@ void printSummary(void) {
          << "    -m, --match-score         the match score (default 10.0)" << endl
          << "    -n, --mismatch-score      the mismatch score (default -9.0)" << endl
          << "    -g, --gap-open-penalty    the gap open penalty (default 15.0)" << endl
+	 << "    -z, --entropy-gap-open-penalty  enable entropy scaling of the gap open penalty" << endl
          << "    -e, --gap-extend-penalty  the gap extend penalty (default 6.66)" << endl
          << "    -b, --bandwidth           bandwidth to use (default 0, or non-banded algorithm)" << endl
          << "    -p, --print-alignment     print out the alignment" << endl
@@ -41,6 +42,7 @@ int main (int argc, char** argv) {
     float mismatchScore = -9.0f;
     float gapOpenPenalty = 15.0f;
     float gapExtendPenalty = 6.66f;
+    float entropyGapOpenPenalty = 0.0f;
     
     bool print_alignment = false;
 
@@ -51,6 +53,7 @@ int main (int argc, char** argv) {
             {"match-score",  required_argument, 0, 'm'},
             {"mismatch-score",  required_argument, 0, 'n'},
             {"gap-open-penalty",  required_argument, 0, 'g'},
+            {"entropy-gap-open-penalty",  required_argument, 0, 'z'},
             {"gap-extend-penalty",  required_argument, 0, 'e'},
             {"print-alignment",  required_argument, 0, 'p'},
             {"bandwidth", required_argument, 0, 'b'},
@@ -58,7 +61,7 @@ int main (int argc, char** argv) {
         };
         int option_index = 0;
 
-        c = getopt_long (argc, argv, "hpm:n:g:r:e:b:",
+        c = getopt_long (argc, argv, "hpm:n:g:r:e:b:z",
                          long_options, &option_index);
 
           if (c == -1)
@@ -87,6 +90,10 @@ int main (int argc, char** argv) {
           case 'g':
             gapOpenPenalty = atof(optarg);
             break;
+
+	  case 'z':
+ 	    entropyGapOpenPenalty = 1;
+	    break;
  
           case 'e':
             gapExtendPenalty = atof(optarg);
@@ -144,6 +151,8 @@ int main (int argc, char** argv) {
         bsw.Align(referencePos, cigar, reference, query, hr);
     } else {
         CSmithWatermanGotoh sw(matchScore, mismatchScore, gapOpenPenalty, gapExtendPenalty);
+	if (entropyGapOpenPenalty > 0)
+	    sw.EnableEntropyGapPenalty(entropyGapOpenPenalty);
         sw.Align(referencePos, cigar, reference, query);
     }
 
