@@ -6,7 +6,7 @@
 # ----------------------------------
 # define our source and object files
 # ----------------------------------
-SOURCES= smithwaterman.cpp BandedSmithWaterman.cpp SmithWatermanGotoh.cpp disorder.c
+SOURCES= smithwaterman.cpp BandedSmithWaterman.cpp SmithWatermanGotoh.cpp Repeats.cpp disorder.c
 OBJECTS= $(SOURCES:.cpp=.o) disorder.o
 
 # ----------------

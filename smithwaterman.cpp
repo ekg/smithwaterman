@@ -20,6 +20,7 @@ void printSummary(void) {
          << "    -g, --gap-open-penalty    the gap open penalty (default 15.0)" << endl
 	 << "    -z, --entropy-gap-open-penalty  enable entropy scaling of the gap open penalty" << endl
          << "    -e, --gap-extend-penalty  the gap extend penalty (default 6.66)" << endl
+	 << "    -r, --repeat-gap-extend-penalty  use repeat information when generating gap extension penalties" << endl
          << "    -b, --bandwidth           bandwidth to use (default 0, or non-banded algorithm)" << endl
          << "    -p, --print-alignment     print out the alignment" << endl
          << endl
@@ -43,6 +44,8 @@ int main (int argc, char** argv) {
     float gapOpenPenalty = 15.0f;
     float gapExtendPenalty = 6.66f;
     float entropyGapOpenPenalty = 0.0f;
+    bool useRepeatGapExtendPenalty = false;
+    float repeatGapExtendPenalty = 1.0f;
     
     bool print_alignment = false;
 
@@ -55,13 +58,14 @@ int main (int argc, char** argv) {
             {"gap-open-penalty",  required_argument, 0, 'g'},
             {"entropy-gap-open-penalty",  required_argument, 0, 'z'},
             {"gap-extend-penalty",  required_argument, 0, 'e'},
+            {"repeat-gap-extend-penalty",  required_argument, 0, 'r'},
             {"print-alignment",  required_argument, 0, 'p'},
             {"bandwidth", required_argument, 0, 'b'},
             {0, 0, 0, 0}
         };
         int option_index = 0;
 
-        c = getopt_long (argc, argv, "hpm:n:g:r:e:b:z",
+        c = getopt_long (argc, argv, "hpzm:n:g:r:e:b:r:",
                          long_options, &option_index);
 
           if (c == -1)
@@ -93,6 +97,11 @@ int main (int argc, char** argv) {
 
 	  case 'z':
  	    entropyGapOpenPenalty = 1;
+	    break;
+ 
+	  case 'r':
+	    useRepeatGapExtendPenalty = true;
+	    repeatGapExtendPenalty = atof(optarg);
 	    break;
  
           case 'e':
@@ -151,6 +160,8 @@ int main (int argc, char** argv) {
         bsw.Align(referencePos, cigar, reference, query, hr);
     } else {
         CSmithWatermanGotoh sw(matchScore, mismatchScore, gapOpenPenalty, gapExtendPenalty);
+	if (useRepeatGapExtendPenalty)
+	    sw.EnableRepeatGapExtensionPenalty(repeatGapExtendPenalty);
 	if (entropyGapOpenPenalty > 0)
 	    sw.EnableEntropyGapPenalty(entropyGapOpenPenalty);
         sw.Align(referencePos, cigar, reference, query);

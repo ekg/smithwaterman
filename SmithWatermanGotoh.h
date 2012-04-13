@@ -10,6 +10,7 @@
 #include <sstream>
 #include <string>
 #include "disorder.h"
+#include "Repeats.h"
 
 using namespace std;
 
@@ -28,6 +29,8 @@ public:
     void EnableHomoPolymerGapPenalty(float hpGapOpenPenalty);
     // enables non-repeat gap open penalty
     void EnableEntropyGapPenalty(float enGapOpenPenalty);
+    // enables repeat gap extension penalty
+    void EnableRepeatGapExtensionPenalty(float rGapExtensionPenalty);
 private:
     // creates a simple scoring matrix to align the nucleotides and the ambiguity code N
     void CreateScoringMatrix(void);
@@ -49,6 +52,8 @@ private:
     const static char Directions_LEFT;
     const static char Directions_DIAGONAL;
     const static char Directions_UP;
+    // repeat structure determination
+    const static int repeat_size_max;
     // define scoring constants
     const float mMatchScore;
     const float mMismatchScore;
@@ -73,10 +78,14 @@ private:
     bool mUseHomoPolymerGapOpenPenalty;
     // specifies the homo-polymer gap open penalty
     float mHomoPolymerGapOpenPenalty;
-    // toggles the use of the non-repeat gap open penalty
+    // toggles the use of the entropy gap open penalty
     bool mUseEntropyGapOpenPenalty;
     // specifies the entropy gap open penalty (multiplier)
     float mEntropyGapOpenPenalty;
+    // toggles the use of the repeat gap extension penalty
+    bool mUseRepeatGapExtensionPenalty;
+    // specifies the repeat gap extension penalty
+    float mRepeatGapExtensionPenalty;
 };
 
 // returns the maximum floating point number

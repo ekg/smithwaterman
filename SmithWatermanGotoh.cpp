@@ -7,6 +7,8 @@ const char CSmithWatermanGotoh::Directions_LEFT     = 1;
 const char CSmithWatermanGotoh::Directions_DIAGONAL = 2;
 const char CSmithWatermanGotoh::Directions_UP       = 3;
 
+const int CSmithWatermanGotoh::repeat_size_max      = 12;
+
 CSmithWatermanGotoh::CSmithWatermanGotoh(float matchScore, float mismatchScore, float gapOpenPenalty, float gapExtendPenalty) 
     : mCurrentMatrixSize(0)
     , mCurrentAnchorSize(0)
@@ -25,6 +27,7 @@ CSmithWatermanGotoh::CSmithWatermanGotoh(float matchScore, float mismatchScore, 
     , mReversedQuery(NULL)
     , mUseHomoPolymerGapOpenPenalty(false)
     , mUseEntropyGapOpenPenalty(false)
+    , mUseRepeatGapExtensionPenalty(false)
 {
     CreateScoringMatrix();
 }
@@ -160,7 +163,7 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 	    totalSimilarityScore = bestScoreDiagonal + similarityScore;
 	    
 	    //cout << "i: " << i << ", j: " << j << ", totalSimilarityScore: " << totalSimilarityScore << endl;
-	    
+
 	    queryGapExtendScore = mQueryGapScores[j] - mGapExtendPenalty;
 	    queryGapOpenScore   = mBestScores[j] - mGapOpenPenalty;
 	    
@@ -175,6 +178,20 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 		    mBestScores[j] - mGapOpenPenalty 
 		    * shannon_H((char*) &s2[min(j - entropyWindowSize / 2, queryLen - entropyWindowSize - 1)], entropyWindowSize)
 		    * mEntropyGapOpenPenalty;
+	    }
+
+	    if (mUseRepeatGapExtensionPenalty) {
+		int gaplen = mSizesOfVerticalGaps[l - 1] + 1;
+		// does the sequence which would be inserted or deleted in this gap match the repeat structure which it is embedded in?
+		string gapseq = string(&s1[i], gaplen);
+		map<string, int> repeats = repeatCounts(j, s2, repeat_size_max);
+		for (map<string, int>::iterator m = repeats.begin(); m != repeats.end(); ++m) {
+		    if (m->first == gapseq) {
+			queryGapExtendScore += mRepeatGapExtensionPenalty;// * m->second;
+		    } else {
+			queryGapExtendScore -= mRepeatGapExtensionPenalty;// * m->second;
+		    }
+		}
 	    }
 		  
 	    if(queryGapExtendScore > queryGapOpenScore) {
@@ -199,6 +216,20 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 		    mBestScores[j - 1] - mGapOpenPenalty 
 		    * shannon_H((char*) &s1[min(i - entropyWindowSize / 2, queryLen - entropyWindowSize - 1)], entropyWindowSize)
 		    * mEntropyGapOpenPenalty;
+	    }
+
+	    if (mUseRepeatGapExtensionPenalty) {
+		int gaplen = mSizesOfHorizontalGaps[l - 1] + 1;
+		// does the sequence which would be inserted or deleted in this gap match the repeat structure which it is embedded in?
+		string gapseq = string(&s2[j], gaplen);
+		map<string, int> repeats = repeatCounts(i, s1, repeat_size_max);
+		for (map<string, int>::iterator m = repeats.begin(); m != repeats.end(); ++m) {
+		    if (m->first == gapseq) {
+			referenceGapExtendScore += mRepeatGapExtensionPenalty;// * m->second;
+		    } else {
+			referenceGapExtendScore -= mRepeatGapExtensionPenalty;// * m->second;
+		    }
+		}
 	    }
 		  
 	    if(referenceGapExtendScore > referenceGapOpenScore) {
@@ -465,10 +496,16 @@ void CSmithWatermanGotoh::EnableHomoPolymerGapPenalty(float hpGapOpenPenalty) {
     mHomoPolymerGapOpenPenalty    = hpGapOpenPenalty;
 }
 
-// enables 
+// enables entropy-based gap open penalty
 void CSmithWatermanGotoh::EnableEntropyGapPenalty(float enGapOpenPenalty) {
     mUseEntropyGapOpenPenalty = true;
     mEntropyGapOpenPenalty    = enGapOpenPenalty;
+}
+
+// enables repeat-aware gap extension penalty
+void CSmithWatermanGotoh::EnableRepeatGapExtensionPenalty(float rGapExtensionPenalty) {
+    mUseRepeatGapExtensionPenalty = true;
+    mRepeatGapExtensionPenalty    = rGapExtensionPenalty;
 }
 
 // corrects the homopolymer gap order for forward alignments
