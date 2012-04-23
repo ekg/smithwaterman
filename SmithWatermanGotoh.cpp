@@ -404,6 +404,10 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
     // fix the gap order
     CorrectHomopolymerGapOrder(alLength, numMismatches);
 
+    if (mUseEntropyGapOpenPenalty || mUseRepeatGapExtensionPenalty) {
+	stablyLeftAlign(s2, cigarAl, s1);
+    }
+
 }
 
 // creates a simple scoring matrix to align the nucleotides and the ambiguity code N

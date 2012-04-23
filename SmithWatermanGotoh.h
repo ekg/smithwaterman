@@ -11,6 +11,7 @@
 #include <string>
 #include "disorder.h"
 #include "Repeats.h"
+#include "LeftAlign.h"
 
 using namespace std;
 
