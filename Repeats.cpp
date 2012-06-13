@@ -6,24 +6,25 @@ map<string, int> repeatCounts(long int position, const string& sequence, int max
         // subseq here i bases
         string seq = sequence.substr(position, i);
         // go left.
-        /*
+
         int j = position - i;
-        int left = 0;
+        int leftsteps = 0;
         while (j - i >= 0 && seq == sequence.substr(j, i)) {
             j -= i;
-            ++left;
+            ++leftsteps;
         }
-        */
+
         // go right.
-        int j = position;
-        int steps = 0;
+        j = position;
+
+        int rightsteps = 0;
         while (j + i < sequence.size() && seq == sequence.substr(j, i)) {
             j += i;
-            ++steps;
+            ++rightsteps;
         }
         // if we went left and right a non-zero number of times, 
-        if (steps > 1) {
-            counts[seq] = steps;
+        if (leftsteps + rightsteps > 1) {
+            counts[seq] = leftsteps + rightsteps;
         }
     }
 
@@ -49,4 +50,20 @@ map<string, int> repeatCounts(long int position, const string& sequence, int max
     } else {
         return counts;
     }
+}
+
+bool isRepeatUnit(const string& seq, const string& unit) {
+
+    if (seq.size() % unit.size() != 0) {
+	return false;
+    } else {
+	int maxrepeats = seq.size() / unit.size();
+	for (int i = 0; i < maxrepeats; ++i) {
+	    if (seq.substr(i * unit.size(), unit.size()) != unit) {
+		return false;
+	    }
+	}
+	return true;
+    }
+
 }

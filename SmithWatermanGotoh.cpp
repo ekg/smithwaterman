@@ -87,6 +87,31 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
     uninitialized_fill(mSizesOfVerticalGaps, mSizesOfVerticalGaps + mCurrentMatrixSize, 1);
     uninitialized_fill(mSizesOfHorizontalGaps, mSizesOfHorizontalGaps + mCurrentMatrixSize, 1);
 
+
+    // initialize our repeat counts if they are needed
+    map<int, map<string, int> > referenceRepeats;
+    map<int, map<string, int> > queryRepeats;
+    if (mUseRepeatGapExtensionPenalty) {
+	for (unsigned int i = 0; i < s2.length(); ++i)
+	    queryRepeats[i] = repeatCounts(i, s2, repeat_size_max);
+	for (unsigned int i = 0; i < s1.length(); ++i)
+	    referenceRepeats[i] = repeatCounts(i, s1, repeat_size_max);
+    }
+
+    int entropyWindowSize = 8;
+    vector<float> referenceEntropies;
+    vector<float> queryEntropies;
+    if (mUseEntropyGapOpenPenalty) {
+	for (unsigned int i = 0; i < queryLen; ++i)
+	    queryEntropies.push_back(
+		shannon_H((char*) &s2[max(0, min((int) i - entropyWindowSize / 2, (int) queryLen - entropyWindowSize - 1))],
+			  entropyWindowSize));
+	for (unsigned int i = 0; i < referenceLen; ++i)
+	    referenceEntropies.push_back(
+		shannon_H((char*) &s1[max(0, min((int) i - entropyWindowSize / 2, (int) referenceLen - entropyWindowSize - 1))],
+			  entropyWindowSize));
+    }
+
     //
     // construct
     //
@@ -147,8 +172,6 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
     unsigned int BestRow    = 0;
     float BestScore         = FLOAT_NEGATIVE_INFINITY;
 
-    int entropyWindowSize = 10;
-
     for(unsigned int i = 1, k = queryLen; i < referenceLen; i++, k += queryLen) {
 
 	currentAnchorGapScore = FLOAT_NEGATIVE_INFINITY;
@@ -158,7 +181,7 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 
 	    // calculate our similarity score
 	    similarityScore = mScoringMatrix[s1[i - 1] - 'A'][s2[j - 1] - 'A'];
-	    
+
 	    // fill the matrices
 	    totalSimilarityScore = bestScoreDiagonal + similarityScore;
 	    
@@ -176,20 +199,22 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 	    if (mUseEntropyGapOpenPenalty) {
 		queryGapOpenScore = 
 		    mBestScores[j] - mGapOpenPenalty 
-		    * shannon_H((char*) &s2[min(j - entropyWindowSize / 2, queryLen - entropyWindowSize - 1)], entropyWindowSize)
+		    * queryEntropies.at(j)
 		    * mEntropyGapOpenPenalty;
 	    }
 
 	    if (mUseRepeatGapExtensionPenalty) {
 		int gaplen = mSizesOfVerticalGaps[l - 1] + 1;
 		// does the sequence which would be inserted or deleted in this gap match the repeat structure which it is embedded in?
-		string gapseq = string(&s1[i], gaplen);
-		map<string, int> repeats = repeatCounts(j, s2, repeat_size_max);
-		for (map<string, int>::iterator m = repeats.begin(); m != repeats.end(); ++m) {
-		    if (m->first == gapseq) {
-			queryGapExtendScore += mRepeatGapExtensionPenalty;// * m->second;
-		    } else {
-			queryGapExtendScore -= mRepeatGapExtensionPenalty;// * m->second;
+		if (gaplen + i < s1.length()) {
+		    string gapseq = string(&s1[i], gaplen);
+		    map<string, int>& repeats = queryRepeats[j];
+		    for (map<string, int>::iterator m = repeats.begin(); m != repeats.end(); ++m) {
+			if (m->second > 2 && (gapseq == m->first || isRepeatUnit(gapseq, m->first))) {
+			    queryGapExtendScore += mRepeatGapExtensionPenalty;// * m->second;
+			} else {
+			    //queryGapExtendScore -= mRepeatGapExtensionPenalty;// * m->second;
+			}
 		    }
 		}
 	    }
@@ -214,20 +239,22 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 		//cerr << string((char*) &s1[min(i - entropyWindowSize / 2, queryLen - entropyWindowSize - 1)], entropyWindowSize) << endl;
 		referenceGapOpenScore = 
 		    mBestScores[j - 1] - mGapOpenPenalty 
-		    * shannon_H((char*) &s1[min(i - entropyWindowSize / 2, queryLen - entropyWindowSize - 1)], entropyWindowSize)
+		    * referenceEntropies.at(i)
 		    * mEntropyGapOpenPenalty;
 	    }
 
 	    if (mUseRepeatGapExtensionPenalty) {
 		int gaplen = mSizesOfHorizontalGaps[l - 1] + 1;
 		// does the sequence which would be inserted or deleted in this gap match the repeat structure which it is embedded in?
-		string gapseq = string(&s2[j], gaplen);
-		map<string, int> repeats = repeatCounts(i, s1, repeat_size_max);
-		for (map<string, int>::iterator m = repeats.begin(); m != repeats.end(); ++m) {
-		    if (m->first == gapseq) {
-			referenceGapExtendScore += mRepeatGapExtensionPenalty;// * m->second;
-		    } else {
-			referenceGapExtendScore -= mRepeatGapExtensionPenalty;// * m->second;
+		if (gaplen + j < s2.length()) {
+		    string gapseq = string(&s2[j], gaplen);
+		    map<string, int>& repeats = referenceRepeats[i];
+		    for (map<string, int>::iterator m = repeats.begin(); m != repeats.end(); ++m) {
+			if (m->second > 2 && (gapseq == m->first || isRepeatUnit(gapseq, m->first))) {
+			    queryGapExtendScore += mRepeatGapExtensionPenalty;// * m->second;
+			} else {
+			    //queryGapExtendScore -= mRepeatGapExtensionPenalty;// * m->second;
+			}
 		    }
 		}
 	    }
@@ -359,6 +386,7 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
     unsigned int m = 0, d = 0, i = 0;
     bool dashRegion = false;
     ostringstream oCigar (ostringstream::out);
+    int insertedBases = 0;
 	
     if ( cj != 0 )
 	oCigar << cj << 'S';
@@ -368,7 +396,7 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 	if ( ( mReversedAnchor[j] != GAP ) && ( mReversedQuery[j] != GAP ) ) {
 	    if ( dashRegion ) {
 		if ( d != 0 ) oCigar << d << 'D';
-		else          oCigar << i << 'I';
+		else          { oCigar << i << 'I'; insertedBases += i; }
 	    }
 	    dashRegion = false;
 	    m++;
@@ -386,7 +414,7 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 		d = 0;
 	    }
 	    else {
-		if ( i != 0 ) oCigar << i << 'I';
+		if ( i != 0) { oCigar << i << 'I'; insertedBases += i; }
 		d++;
 		i = 0;
 	    }
@@ -400,12 +428,12 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 	oCigar << s2.length() - BestColumn << 'S';
 
     cigarAl = oCigar.str();
-	
+
     // fix the gap order
     CorrectHomopolymerGapOrder(alLength, numMismatches);
 
     if (mUseEntropyGapOpenPenalty || mUseRepeatGapExtensionPenalty) {
-	stablyLeftAlign(s2, cigarAl, s1);
+	stablyLeftAlign(s2, cigarAl, s1.substr(referenceAl, alLength - insertedBases));
     }
 
 }

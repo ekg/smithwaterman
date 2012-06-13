@@ -1,6 +1,7 @@
 #include "LeftAlign.h"
 
 //bool debug;
+#define VERBOSE_DEBUG
 
 // Attempts to left-realign all the indels represented by the alignment cigar.
 //
@@ -25,7 +26,9 @@
 bool leftAlign(string& querySequence, string& cigar, string& referenceSequence, bool debug) {
 
     int arsOffset = 0; // pointer to insertion point in aligned reference sequence
-    string alignedReferenceSequence = referenceSequence;
+    string alignedReferenceSequence, alignedQuerySequence;
+    if (debug) alignedReferenceSequence = referenceSequence;
+    if (debug) alignedQuerySequence = querySequence;
     int aabOffset = 0;
 
     // store information about the indels
@@ -49,12 +52,12 @@ bool leftAlign(string& querySequence, string& cigar, string& referenceSequence, 
             rp += l;
         } else if (t == "D") { // deletion
             indels.push_back(IndelAllele(false, l, sp, rp, referenceSequence.substr(sp, l)));
-            querySequence.insert(rp + aabOffset, string(l, '-'));
+            if (debug) alignedQuerySequence.insert(rp + aabOffset, string(l, '-'));
             aabOffset += l;
             sp += l;  // update reference sequence position
         } else if (t == "I") { // insertion
             indels.push_back(IndelAllele(true, l, sp, rp, querySequence.substr(rp, l)));
-            alignedReferenceSequence.insert(sp + softBegin.size() + arsOffset, string(l, '-'));
+            if (debug) alignedReferenceSequence.insert(sp + softBegin.size() + arsOffset, string(l, '-'));
             arsOffset += l;
             rp += l;
         } else if (t == "S") { // soft clip, clipped sequence present in the read not matching the reference
@@ -76,9 +79,9 @@ bool leftAlign(string& querySequence, string& cigar, string& referenceSequence, 
 
     int alignedLength = sp;
 
-    LEFTALIGN_DEBUG("| " << cigar_before.str() << endl
-       << "| " << alignedReferenceSequence << endl
-       << "| " << querySequence << endl);
+    if (debug) cerr << "| " << cigarbefore << endl
+		    << "| " << alignedReferenceSequence << endl
+		    << "| " << alignedQuerySequence << endl;
 
     // if no indels, return the alignment
     if (indels.empty()) { return false; }
@@ -111,7 +114,7 @@ bool leftAlign(string& querySequence, string& cigar, string& referenceSequence, 
             if (debug) {
                 if (steppos >= 0 && readsteppos >= 0) {
                     cerr << referenceSequence.substr(steppos, indel.length) << endl;
-                    cerr << alignment.QuerySequenceBases.substr(readsteppos, indel.length) << endl;
+                    cerr << querySequence.substr(readsteppos, indel.length) << endl;
                     cerr << indel.sequence << endl;
                 }
             }
