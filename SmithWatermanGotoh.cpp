@@ -89,13 +89,45 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 
 
     // initialize our repeat counts if they are needed
-    map<int, map<string, int> > referenceRepeats;
-    map<int, map<string, int> > queryRepeats;
+    vector<map<string, int> > referenceRepeats;
+    vector<map<string, int> > queryRepeats;
     if (mUseRepeatGapExtensionPenalty) {
-	for (unsigned int i = 0; i < s2.length(); ++i)
-	    queryRepeats[i] = repeatCounts(i, s2, repeat_size_max);
-	for (unsigned int i = 0; i < s1.length(); ++i)
-	    referenceRepeats[i] = repeatCounts(i, s1, repeat_size_max);
+	for (unsigned int i = 0; i < queryLen; ++i)
+	    queryRepeats.push_back(repeatCounts(i, s2, repeat_size_max));
+	for (unsigned int i = 0; i < referenceLen; ++i)
+	    referenceRepeats.push_back(repeatCounts(i, s1, repeat_size_max));
+
+	// remove repeat information from ends of queries
+	// this results in the addition of spurious flanking deletions in repeats
+
+	map<string, int>& qrend = queryRepeats.at(queryRepeats.size() - 2);
+	if (!qrend.empty()) {
+	    int repeatsize = 0;
+	    for (map<string, int>::iterator z = qrend.begin(); z != qrend.end(); ++z)
+		if (z->first.size() * z->second > repeatsize) repeatsize = z->first.size() * z->second;
+	    for (int i = 0; i < repeatsize; ++i)
+		queryRepeats.at(queryRepeats.size() - 2 - i).clear();
+	}
+
+	map<string, int>& qrbegin = queryRepeats.front();
+	if (!qrbegin.empty()) {
+	    int repeatsize = 0;
+	    for (map<string, int>::iterator z = qrbegin.begin(); z != qrbegin.end(); ++z)
+		if (z->first.size() * z->second > repeatsize) repeatsize = z->first.size() * z->second;
+	    for (int i = 0; i < repeatsize; ++i)
+		queryRepeats.at(i).clear();
+	}
+
+	/*
+	for (vector<map<string, int> >::iterator r = queryRepeats.begin(); r != queryRepeats.end(); ++r) {
+	    if (r->empty())
+		cerr << "empty one" << endl;
+	    for (map<string, int>::iterator z = r->begin(); z != r->end(); ++z)
+		cerr << "repeat: " << z->first << " * " << z->second << endl;
+	}
+	*/
+
+
     }
 
     int entropyWindowSize = 8;

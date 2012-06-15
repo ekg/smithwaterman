@@ -9,7 +9,7 @@ map<string, int> repeatCounts(long int position, const string& sequence, int max
 
         int j = position - i;
         int leftsteps = 0;
-        while (j - i >= 0 && seq == sequence.substr(j, i)) {
+        while (j >= 0 && seq == sequence.substr(j, i)) {
             j -= i;
             ++leftsteps;
         }
@@ -18,7 +18,7 @@ map<string, int> repeatCounts(long int position, const string& sequence, int max
         j = position;
 
         int rightsteps = 0;
-        while (j + i < sequence.size() && seq == sequence.substr(j, i)) {
+        while (j + i <= sequence.size() && seq == sequence.substr(j, i)) {
             j += i;
             ++rightsteps;
         }
