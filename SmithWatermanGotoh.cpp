@@ -423,9 +423,9 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
     if ( cj != 0 ) {
 	oCigar << cj << 'S';
 	if (referenceAl < cj) {
-	    cerr << "WARNING: alignment out of bounds, soft clipping extends into negative reference sequence" << endl;
-	    cerr << s1 << endl;
-	    cerr << s2 << endl;
+	    //cerr << "WARNING: alignment out of bounds, soft clipping extends into negative reference sequence" << endl;
+	    //cerr << s1 << endl;
+	    //cerr << s2 << endl;
 	} else {
 	    referenceAl -= cj;
 	}
