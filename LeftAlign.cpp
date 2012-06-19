@@ -153,7 +153,8 @@ bool leftAlign(string& querySequence, string& cigar, string& referenceSequence, 
         steppos = indel.position - 1;
         readsteppos = indel.readPosition - 1;
         while (steppos >= 0 && readsteppos >= 0
-               && querySequence.at(readsteppos) == referenceSequence.at(steppos)
+               //`&& querySequence.at(readsteppos) == referenceSequence.at(steppos)
+	       && indel.sequence.at(indel.sequence.size() - 1) == referenceSequence.at(steppos + indel.length) // are the exchanged bases going to match wrt. the reference?
                && querySequence.at(readsteppos) == indel.sequence.at(indel.sequence.size() - 1)
                && (id == indels.begin()
                    || (previous->insertion && indel.position - 1 >= previous->position)
@@ -204,21 +205,42 @@ bool leftAlign(string& querySequence, string& cigar, string& referenceSequence, 
                 } 
                 else {
                     int pos = previous->position;
+		    int readpos = previous->readPosition;
                     while (pos < (int) referenceSequence.length() &&
                             ((previous->insertion && pos + previous->length <= indel.position)
                             ||
                             (!previous->insertion && pos + previous->length < indel.position))
-                            && previous->sequence 
-                                == referenceSequence.substr(pos + previous->length, previous->length)) {
+			   && previous->sequence == referenceSequence.substr(pos + previous->length, previous->length)
+			   && previous->sequence == querySequence.substr(readpos + previous->length, previous->length)
+			) {
                         pos += previous->length;
+			readpos += previous->length;
                     }
-                    if (pos < previous->position &&
-                        ((previous->insertion && pos + previous->length == indel.position)
-                        ||
-                        (!previous->insertion && pos == indel.position - previous->length))
-                       ) {
-                        LEFTALIGN_DEBUG("right-merging tandem repeat: moving " << *previous << " right to " << pos << endl);
-                        previous->position = pos;
+		    string seq = previous->sequence;
+                    if (pos > previous->position) {
+			// wobble bases right to left as far as we can go
+			int steppos = previous->position + seq.size();
+			int readsteppos = previous->readPosition + seq.size();
+
+			while (querySequence.at(readsteppos) == referenceSequence.at(steppos)
+			       && querySequence.at(readsteppos) == seq.at(0)
+			       && (id == indels.begin()
+				   || (indel.insertion && pos + seq.size() - 1 <= indel.position)
+				   || (!previous->insertion && indel.position - 1 >= pos + previous->length))) {
+			    seq = seq.substr(1) + seq.at(0);
+			    ++pos;
+			    ++readpos;
+			    steppos = pos + 1;
+			    readsteppos = readpos + 1;
+			}
+
+			if (((previous->insertion && pos + previous->length == indel.position)
+			     ||
+			     (!previous->insertion && pos == indel.position - previous->length))
+			    ) {
+			    LEFTALIGN_DEBUG("right-merging tandem repeat: moving " << *previous << " right to " << pos << endl);
+			    previous->position = pos;
+			}
                     }
                 }
             }

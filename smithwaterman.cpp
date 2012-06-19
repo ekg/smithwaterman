@@ -196,7 +196,6 @@ int main (int argc, char** argv) {
                     break;
                 case 'S':
                     len = atoi(slen.c_str());
-                    alignmentLength += len;
                     slen.clear();
                     cigarData.push_back(make_pair(len, *c));
                     break;
@@ -218,15 +217,21 @@ int main (int argc, char** argv) {
                 case 'I':
                     gapped_ref.insert(refpos, string(len, '-'));
                     readpos += len;
+		    refpos += len;
                     break;
                 case 'D':
                     gapped_query.insert(readpos, string(len, '-'));
                     refpos += len;
+		    readpos += len;
                     break;
                 case 'M':
+		    readpos += len;
+		    refpos += len;
+		    break;
                 case 'S':
                     readpos += len;
-                    refpos += len;
+		    gapped_ref.insert(refpos, string(len, '*'));
+		    refpos += len;
                     break;
                 default:
                     break;

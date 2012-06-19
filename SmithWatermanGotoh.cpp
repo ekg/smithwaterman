@@ -243,7 +243,8 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 		    map<string, int>& repeats = queryRepeats[j];
 		    for (map<string, int>::iterator m = repeats.begin(); m != repeats.end(); ++m) {
 			if (m->second > 2 && (gapseq == m->first || isRepeatUnit(gapseq, m->first))) {
-			    queryGapExtendScore += mRepeatGapExtensionPenalty;// * m->second;
+			    queryGapExtendScore = mQueryGapScores[j] + mRepeatGapExtensionPenalty / (float) gaplen;// * m->second;
+			    //queryGapExtendScore += mRepeatGapExtensionPenalty;
 			} else {
 			    //queryGapExtendScore -= mRepeatGapExtensionPenalty;// * m->second;
 			}
@@ -283,14 +284,15 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 		    map<string, int>& repeats = referenceRepeats[i];
 		    for (map<string, int>::iterator m = repeats.begin(); m != repeats.end(); ++m) {
 			if (m->second > 2 && (gapseq == m->first || isRepeatUnit(gapseq, m->first))) {
-			    referenceGapExtendScore += mRepeatGapExtensionPenalty;// * m->second;
+			    referenceGapExtendScore = currentAnchorGapScore + mRepeatGapExtensionPenalty / (float) gaplen;// * m->second;
+			    //referenceGapExtendScore += mRepeatGapExtensionPenalty;
 			} else {
 			    //queryGapExtendScore -= mRepeatGapExtensionPenalty;// * m->second;
 			}
 		    }
 		}
 	    }
-		  
+
 	    if(referenceGapExtendScore > referenceGapOpenScore) {
 		currentAnchorGapScore = referenceGapExtendScore;
 		mSizesOfHorizontalGaps[l] = (short)(mSizesOfHorizontalGaps[l - 1] + 1);
@@ -420,16 +422,8 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
     ostringstream oCigar (ostringstream::out);
     int insertedBases = 0;
 	
-    if ( cj != 0 ) {
+    if ( cj != 0 )
 	oCigar << cj << 'S';
-	if (referenceAl < cj) {
-	    //cerr << "WARNING: alignment out of bounds, soft clipping extends into negative reference sequence" << endl;
-	    //cerr << s1 << endl;
-	    //cerr << s2 << endl;
-	} else {
-	    referenceAl -= cj;
-	}
-    }
 	
     for ( unsigned int j = 0; j < alLength; j++ ) {
 	// m
