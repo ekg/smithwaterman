@@ -154,8 +154,9 @@ bool leftAlign(string& querySequence, string& cigar, string& referenceSequence, 
         readsteppos = indel.readPosition - 1;
         while (steppos >= 0 && readsteppos >= 0
                //`&& querySequence.at(readsteppos) == referenceSequence.at(steppos)
-	       && indel.sequence.at(indel.sequence.size() - 1) == referenceSequence.at(steppos + indel.length) // are the exchanged bases going to match wrt. the reference?
-               && querySequence.at(readsteppos) == indel.sequence.at(indel.sequence.size() - 1)
+	       && referenceSequence.size() > steppos + indel.length
+	       && indel.sequence.at((int) indel.sequence.size() - 1) == referenceSequence.at(steppos + indel.length) // are the exchanged bases going to match wrt. the reference?
+               && querySequence.at(readsteppos) == indel.sequence.at((int) indel.sequence.size() - 1)
                && (id == indels.begin()
                    || (previous->insertion && indel.position - 1 >= previous->position)
                    || (!previous->insertion && indel.position - 1 >= previous->position + previous->length))) {
