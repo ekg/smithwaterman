@@ -97,36 +97,51 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 	for (unsigned int i = 0; i < referenceLen; ++i)
 	    referenceRepeats.push_back(repeatCounts(i, s1, repeat_size_max));
 
+	// keep only the biggest repeat
+	vector<map<string, int> >::iterator q = queryRepeats.begin();
+	for (; q != queryRepeats.end(); ++q) {
+	    map<string, int>::iterator biggest = q->begin();
+	    map<string, int>::iterator z = q->begin();
+	    for (; z != q->end(); ++z)
+		if (z->first.size() > biggest->first.size()) biggest = z;
+	    z = q->begin();
+	    while (z != q->end()) {
+		if (z != biggest)
+		    q->erase(z++);
+		else ++z;
+	    }
+	}
+
+	q = referenceRepeats.begin();
+	for (; q != referenceRepeats.end(); ++q) {
+	    map<string, int>::iterator biggest = q->begin();
+	    map<string, int>::iterator z = q->begin();
+	    for (; z != q->end(); ++z)
+		if (z->first.size() > biggest->first.size()) biggest = z;
+	    z = q->begin();
+	    while (z != q->end()) {
+		if (z != biggest)
+		    q->erase(z++);
+		else ++z;
+	    }
+	}
+
 	// remove repeat information from ends of queries
 	// this results in the addition of spurious flanking deletions in repeats
 
 	map<string, int>& qrend = queryRepeats.at(queryRepeats.size() - 2);
 	if (!qrend.empty()) {
-	    int repeatsize = 0;
-	    for (map<string, int>::iterator z = qrend.begin(); z != qrend.end(); ++z)
-		if (z->first.size() * z->second > repeatsize) repeatsize = z->first.size() * z->second;
+	    int repeatsize = qrend.begin()->first.size() * qrend.begin()->second;
 	    for (int i = 0; i < repeatsize; ++i)
 		queryRepeats.at(queryRepeats.size() - 2 - i).clear();
 	}
 
 	map<string, int>& qrbegin = queryRepeats.front();
 	if (!qrbegin.empty()) {
-	    int repeatsize = 0;
-	    for (map<string, int>::iterator z = qrbegin.begin(); z != qrbegin.end(); ++z)
-		if (z->first.size() * z->second > repeatsize) repeatsize = z->first.size() * z->second;
+	    int repeatsize = qrbegin.begin()->first.size() * qrbegin.begin()->second;
 	    for (int i = 0; i < repeatsize; ++i)
 		queryRepeats.at(i).clear();
 	}
-
-	/*
-	for (vector<map<string, int> >::iterator r = queryRepeats.begin(); r != queryRepeats.end(); ++r) {
-	    if (r->empty())
-		cerr << "empty one" << endl;
-	    for (map<string, int>::iterator z = r->begin(); z != r->end(); ++z)
-		cerr << "repeat: " << z->first << " * " << z->second << endl;
-	}
-	*/
-
 
     }
 
@@ -235,18 +250,23 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 		    * mEntropyGapOpenPenalty;
 	    }
 
+	    int gaplen = mSizesOfVerticalGaps[l - queryLen] + 1;
+
 	    if (mUseRepeatGapExtensionPenalty) {
-		int gaplen = mSizesOfVerticalGaps[l - 1] + 1;
+		map<string, int>& repeats = queryRepeats[j];
 		// does the sequence which would be inserted or deleted in this gap match the repeat structure which it is embedded in?
-		if (gaplen + i < s1.length()) {
-		    string gapseq = string(&s1[i], gaplen);
-		    map<string, int>& repeats = queryRepeats[j];
-		    for (map<string, int>::iterator m = repeats.begin(); m != repeats.end(); ++m) {
-			if (m->second > 2 && (gapseq == m->first || isRepeatUnit(gapseq, m->first))) {
-			    queryGapExtendScore = mQueryGapScores[j] + mRepeatGapExtensionPenalty / (float) gaplen;// * m->second;
-			    //queryGapExtendScore += mRepeatGapExtensionPenalty;
-			} else {
-			    //queryGapExtendScore -= mRepeatGapExtensionPenalty;// * m->second;
+		if (!repeats.empty()) {
+
+		    const pair<string, int>& repeat = *repeats.begin();
+		    int repeatsize = repeat.first.size();
+		    if (gaplen != repeatsize && gaplen % repeatsize != 0) {
+			gaplen = gaplen / repeatsize + repeatsize;
+		    }
+
+		    if (repeat.second > 1 && gaplen + i < s1.length()) {
+			string gapseq = string(&s1[i], gaplen);
+			if (gapseq == repeat.first || isRepeatUnit(gapseq, repeat.first)) {
+			    queryGapExtendScore = mQueryGapScores[j] + mRepeatGapExtensionPenalty / (float) gaplen;
 			}
 		    }
 		}
@@ -254,7 +274,7 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 		  
 	    if(queryGapExtendScore > queryGapOpenScore) {
 		mQueryGapScores[j] = queryGapExtendScore;
-		mSizesOfVerticalGaps[l] = (short)(mSizesOfVerticalGaps[l - queryLen] + 1);
+		mSizesOfVerticalGaps[l] = gaplen;
 	    } else mQueryGapScores[j] = queryGapOpenScore;
 	    
 	    referenceGapExtendScore = currentAnchorGapScore - mGapExtendPenalty;
@@ -267,27 +287,29 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 		  
 	    // compute the entropy gap score if enabled
 	    if (mUseEntropyGapOpenPenalty) {
-		//cerr << string(&s1[min(i-1, referenceLen - entropyWindowSize - 1)], entropyWindowSize) << endl;
-		//cerr << shannon_H((char*) &s1[min(i-1, queryLen - entropyWindowSize - 1)], entropyWindowSize) << endl;
-		//cerr << string((char*) &s1[min(i - entropyWindowSize / 2, queryLen - entropyWindowSize - 1)], entropyWindowSize) << endl;
 		referenceGapOpenScore = 
 		    mBestScores[j - 1] - mGapOpenPenalty 
 		    * referenceEntropies.at(i)
 		    * mEntropyGapOpenPenalty;
 	    }
 
+	    gaplen = mSizesOfHorizontalGaps[l - 1] + 1;
+
 	    if (mUseRepeatGapExtensionPenalty) {
-		int gaplen = mSizesOfHorizontalGaps[l - 1] + 1;
+		map<string, int>& repeats = referenceRepeats[i];
 		// does the sequence which would be inserted or deleted in this gap match the repeat structure which it is embedded in?
-		if (gaplen + j < s2.length()) {
-		    string gapseq = string(&s2[j], gaplen);
-		    map<string, int>& repeats = referenceRepeats[i];
-		    for (map<string, int>::iterator m = repeats.begin(); m != repeats.end(); ++m) {
-			if (m->second > 2 && (gapseq == m->first || isRepeatUnit(gapseq, m->first))) {
-			    referenceGapExtendScore = currentAnchorGapScore + mRepeatGapExtensionPenalty / (float) gaplen;// * m->second;
-			    //referenceGapExtendScore += mRepeatGapExtensionPenalty;
-			} else {
-			    //queryGapExtendScore -= mRepeatGapExtensionPenalty;// * m->second;
+		if (!repeats.empty()) {
+
+		    const pair<string, int>& repeat = *repeats.begin();
+		    int repeatsize = repeat.first.size();
+		    if (gaplen != repeatsize && gaplen % repeatsize != 0) {
+			gaplen = gaplen / repeatsize + repeatsize;
+		    }
+
+		    if (repeat.second > 1 && gaplen + j < s2.length()) {
+			string gapseq = string(&s2[j], gaplen);
+			if (gapseq == repeat.first || isRepeatUnit(gapseq, repeat.first)) {
+			    referenceGapExtendScore = currentAnchorGapScore + mRepeatGapExtensionPenalty / (float) gaplen;
 			}
 		    }
 		}
@@ -295,7 +317,7 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 
 	    if(referenceGapExtendScore > referenceGapOpenScore) {
 		currentAnchorGapScore = referenceGapExtendScore;
-		mSizesOfHorizontalGaps[l] = (short)(mSizesOfHorizontalGaps[l - 1] + 1);
+		mSizesOfHorizontalGaps[l] = gaplen;
 	    } else currentAnchorGapScore = referenceGapOpenScore;
 		  
 	    bestScoreDiagonal = mBestScores[j];
