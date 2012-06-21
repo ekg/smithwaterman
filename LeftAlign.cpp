@@ -277,6 +277,7 @@ bool leftAlign(string& querySequence, string& cigar, string& referenceSequence, 
 	    }
 	    if (minsize < indel.length) {
 		offset += indel.length - minsize;
+		alignedLength -= (indel.length - minsize);
 		indel.length = minsize;
 		indel.sequence = indel.sequence.substr(indel.sequence.size() - minsize);
 	    }
