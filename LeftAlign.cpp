@@ -23,7 +23,7 @@
 //
 // In practice, we must call this function until the alignment is stabilized.
 //
-bool leftAlign(string& querySequence, string& cigar, string& referenceSequence, bool debug) {
+bool leftAlign(string& querySequence, string& cigar, string& referenceSequence, int& offset, bool debug) {
 
     int arsOffset = 0; // pointer to insertion point in aligned reference sequence
     string alignedReferenceSequence, alignedQuerySequence;
@@ -52,12 +52,12 @@ bool leftAlign(string& querySequence, string& cigar, string& referenceSequence, 
             rp += l;
         } else if (t == "D") { // deletion
             indels.push_back(IndelAllele(false, l, sp, rp, referenceSequence.substr(sp, l)));
-            if (debug) alignedQuerySequence.insert(rp + aabOffset, string(l, '-'));
+            //if (debug) alignedQuerySequence.insert(rp + aabOffset, string(l, '-'));
             aabOffset += l;
             sp += l;  // update reference sequence position
         } else if (t == "I") { // insertion
             indels.push_back(IndelAllele(true, l, sp, rp, querySequence.substr(rp, l)));
-            if (debug) alignedReferenceSequence.insert(sp + softBegin.size() + arsOffset, string(l, '-'));
+            //if (debug) alignedReferenceSequence.insert(sp + softBegin.size() + arsOffset, string(l, '-'));
             arsOffset += l;
             rp += l;
         } else if (t == "S") { // soft clip, clipped sequence present in the read not matching the reference
@@ -249,6 +249,58 @@ bool leftAlign(string& querySequence, string& cigar, string& referenceSequence, 
         }
     }
 
+    // try to "bring in" repeat indels at the end, for maximum parsimony
+    //
+    // e.g.
+    //
+    // AGAAAGAAAGAAAAAGAAAAAGAACCAAGAAGAAAA
+    // AGAAAG------AAAGAAAAAGAACCAAGAAGAAAA
+    //
+    //     has no information which distinguishes it from:
+    //
+    // AGAAAGAAAAAGAAAAAGAACCAAGAAGAAAA
+    // AGAAAG--AAAGAAAAAGAACCAAGAAGAAAA
+    //
+    // here we take the parsimonious explanation
+
+    if (!indels.empty()) {
+	// deal with the first indel
+	IndelAllele& indel = indels.front();
+	if (!indel.insertion) { // only handle deletions like this for now
+	    int minsize = indel.length;
+	    int flankingLength = indel.readPosition;
+	    string flanking = querySequence.substr(0, flankingLength);
+	    for (int i = 0; i <= indel.length; ++i) {
+		if (referenceSequence.substr(i, flankingLength) == flanking) {
+		    minsize = indel.length - i;
+		}
+	    }
+	    if (minsize < indel.length) {
+		offset += indel.length - minsize;
+		indel.length = minsize;
+		indel.sequence = indel.sequence.substr(indel.sequence.size() - minsize);
+	    }
+	}
+
+	if (indels.size() > 1 && !indels.back().insertion) {
+	    IndelAllele& indel = indels.back();
+	    int minsize = indel.length;
+	    int flankingLength = querySequence.size() - indel.readPosition;
+	    string flanking = querySequence.substr(indel.readPosition, flankingLength);
+	    for (int i = 0; i <= indel.length; ++i) {
+		if (referenceSequence.substr(referenceSequence.size() - (flankingLength + i), flankingLength) == flanking) {
+		    minsize = indel.length - i;
+		}
+	    }
+	    if (minsize < indel.length) {
+		referenceSequence = referenceSequence.substr(0, referenceSequence.size() - (indel.length - minsize));
+		alignedLength -= (indel.length - minsize);
+		indel.length = minsize;
+		indel.sequence = indel.sequence.substr(indel.sequence.size() - minsize);
+	    }
+	}
+    }
+
     // for each indel
     //     if ( we're matched up to the previous insertion (or deletion) 
     //          and it's also an insertion or deletion )
@@ -311,15 +363,20 @@ bool leftAlign(string& querySequence, string& cigar, string& referenceSequence, 
 		}
 		pair<int, string>& op = newCigar.back();
 		op.first -= biggestmatchsize;
-		// it's probably not necessary to update the last.sequence
-		last.sequence = last.sequence.substr(last.sequence.size() - biggestmatchsize);
+		last.sequence = last.sequence.substr(0, last.sequence.size() - biggestmatchsize);
 		last.length -= biggestmatchsize;
-		indel.sequence = indel.sequence.substr(0, biggestmatchsize);
+		indel.sequence = indel.sequence.substr(biggestmatchsize);
 		indel.length -= biggestmatchsize;
-		newCigar.push_back(make_pair(indel.length, (indel.insertion ? "I" : "D")));
+		if (indel.insertion) indel.readPosition += biggestmatchsize;
+		else indel.position += biggestmatchsize;
+		if (last.length == 0) newCigar.pop_back();
+		if (newCigar.back().second == "M") newCigar.back().first += biggestmatchsize;
+		else newCigar.push_back(make_pair(biggestmatchsize, "M"));
+		if (indel.length > 0) newCigar.push_back(make_pair(indel.length, (indel.insertion ? "I" : "D")));
 	    }
         } else if (indel.position >= lastend) {  // also catches differential indels, but with the same position
-            newCigar.push_back(make_pair(indel.position - lastend, "M"));
+	    if (newCigar.back().second == "M") newCigar.back().first += indel.position - lastend;
+	    else newCigar.push_back(make_pair(indel.position - lastend, "M"));
             newCigar.push_back(make_pair(indel.length, (indel.insertion ? "I" : "D")));
         }
         last = *id;
@@ -327,7 +384,8 @@ bool leftAlign(string& querySequence, string& cigar, string& referenceSequence, 
     }
     
     if (lastend < alignedLength) {
-        newCigar.push_back(make_pair(alignedLength - lastend, "M"));
+	if (newCigar.back().second == "M") newCigar.back().first += alignedLength - lastend;
+	else newCigar.push_back(make_pair(alignedLength - lastend, "M"));
     }
 
     if (!softEnd.empty()) {
@@ -386,16 +444,16 @@ int countMismatches(string& querySequence, string& cigar, string referenceSequen
 // realignment.  Returns true on realignment success or non-realignment.
 // Returns false if we exceed the maximum number of realignment iterations.
 //
-bool stablyLeftAlign(string querySequence, string& cigar, string referenceSequence, int maxiterations, bool debug) {
+bool stablyLeftAlign(string querySequence, string& cigar, string referenceSequence, int& offset, int maxiterations, bool debug) {
 
-    if (!leftAlign(querySequence, cigar, referenceSequence, debug)) {
+    if (!leftAlign(querySequence, cigar, referenceSequence, offset)) {
 
         LEFTALIGN_DEBUG("did not realign" << endl);
         return true;
 
     } else {
 
-        while (leftAlign(querySequence, cigar, referenceSequence, debug) && --maxiterations > 0) {
+        while (leftAlign(querySequence, cigar, referenceSequence, offset) && --maxiterations > 0) {
             LEFTALIGN_DEBUG("realigning ..." << endl);
         }
 

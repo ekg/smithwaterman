@@ -91,6 +91,8 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
     // initialize our repeat counts if they are needed
     vector<map<string, int> > referenceRepeats;
     vector<map<string, int> > queryRepeats;
+    int queryBeginRepeatBases = 0;
+    int queryEndRepeatBases = 0;
     if (mUseRepeatGapExtensionPenalty) {
 	for (unsigned int i = 0; i < queryLen; ++i)
 	    queryRepeats.push_back(repeatCounts(i, s2, repeat_size_max));
@@ -128,18 +130,17 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 
 	// remove repeat information from ends of queries
 	// this results in the addition of spurious flanking deletions in repeats
-
 	map<string, int>& qrend = queryRepeats.at(queryRepeats.size() - 2);
 	if (!qrend.empty()) {
-	    int repeatsize = qrend.begin()->first.size() * qrend.begin()->second;
-	    for (int i = 0; i < repeatsize; ++i)
+	    int queryEndRepeatBases = qrend.begin()->first.size() * qrend.begin()->second;
+	    for (int i = 0; i < queryEndRepeatBases; ++i)
 		queryRepeats.at(queryRepeats.size() - 2 - i).clear();
 	}
 
 	map<string, int>& qrbegin = queryRepeats.front();
 	if (!qrbegin.empty()) {
-	    int repeatsize = qrbegin.begin()->first.size() * qrbegin.begin()->second;
-	    for (int i = 0; i < repeatsize; ++i)
+	    int queryBeginRepeatBases = qrbegin.begin()->first.size() * qrbegin.begin()->second;
+	    for (int i = 0; i < queryBeginRepeatBases; ++i)
 		queryRepeats.at(i).clear();
 	}
 
@@ -266,7 +267,8 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 		    if (repeat.second > 1 && gaplen + i < s1.length()) {
 			string gapseq = string(&s1[i], gaplen);
 			if (gapseq == repeat.first || isRepeatUnit(gapseq, repeat.first)) {
-			    queryGapExtendScore = mQueryGapScores[j] + mRepeatGapExtensionPenalty / (float) gaplen;
+			    queryGapExtendScore = mQueryGapScores[j]
+				+ mRepeatGapExtensionPenalty / (float) gaplen;
 			}
 		    }
 		}
@@ -309,7 +311,8 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 		    if (repeat.second > 1 && gaplen + j < s2.length()) {
 			string gapseq = string(&s2[j], gaplen);
 			if (gapseq == repeat.first || isRepeatUnit(gapseq, repeat.first)) {
-			    referenceGapExtendScore = currentAnchorGapScore + mRepeatGapExtensionPenalty / (float) gaplen;
+			    referenceGapExtendScore = currentAnchorGapScore
+				+ mRepeatGapExtensionPenalty / (float) gaplen;
 			}
 		    }
 		}
@@ -495,7 +498,9 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
     CorrectHomopolymerGapOrder(alLength, numMismatches);
 
     if (mUseEntropyGapOpenPenalty || mUseRepeatGapExtensionPenalty) {
-	stablyLeftAlign(s2, cigarAl, s1.substr(referenceAl, alLength - insertedBases));
+	int offset = 0;
+	stablyLeftAlign(s2, cigarAl, s1.substr(referenceAl, alLength - insertedBases), offset);
+	referenceAl += offset;
     }
 
 }

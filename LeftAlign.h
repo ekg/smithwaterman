@@ -19,8 +19,8 @@
 
 using namespace std;
 
-bool leftAlign(string& alternateQuery, string& cigar, string& referenceSequence, bool debug = false);
-bool stablyLeftAlign(string alternateQuery, string& cigar, string referenceSequence, int maxiterations = 20, bool debug = false);
+bool leftAlign(string& alternateQuery, string& cigar, string& referenceSequence, int& offset, bool debug = false);
+bool stablyLeftAlign(string alternateQuery, string& cigar, string referenceSequence, int& offset, int maxiterations = 20, bool debug = false);
 int countMismatches(string& alternateQuery, string& cigar, string& referenceSequence);
 
 string mergeCigar(const string& c1, const string& c2);
