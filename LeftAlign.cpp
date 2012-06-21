@@ -286,7 +286,6 @@ bool leftAlign(string& querySequence, string& cigar, string& referenceSequence, 
 	    && (indel.insertion && indel.position == referenceSequence.size() - 1
 		|| (!indel.insertion && indel.position + indel.length == referenceSequence.size() - 1))
 	    ) {
-	    cerr << "hanging indel " << indel << endl;
 	    if (indel.insertion) {
 		if (!newCigar.empty() && newCigar.back().second == "S") {
 		    newCigar.back().first += indel.length;
