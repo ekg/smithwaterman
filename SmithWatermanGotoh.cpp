@@ -444,8 +444,14 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
     ostringstream oCigar (ostringstream::out);
     int insertedBases = 0;
 	
-    if ( cj != 0 )
-	oCigar << cj << 'S';
+    if ( cj != 0 ) {
+	if ( cj > 0 ) {
+	    oCigar << cj << 'S';
+	} else { // how do we get negative cj's?
+	    referenceAl -= cj;
+	    alLength += cj;
+	}
+    }
 	
     for ( unsigned int j = 0; j < alLength; j++ ) {
 	// m
@@ -460,7 +466,7 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 	    i = 0;
 	}
 	else {
-	    if ( !dashRegion )
+	    if ( !dashRegion && m )
 		oCigar << m << 'M';
 	    dashRegion = true;
 	    m = 0;

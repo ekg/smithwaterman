@@ -255,6 +255,9 @@ bool leftAlign(string& querySequence, string& cigar, string& referenceSequence, 
     //         merge the indels
     //
     // and simultaneously reconstruct the cigar
+    //
+    // if there are spurious deletions at the start and end of the read, remove them
+    // if there are spurious insertions after soft-clipped bases, make them soft clips
 
     vector<pair<int, string> > newCigar;
 
@@ -267,19 +270,33 @@ bool leftAlign(string& querySequence, string& cigar, string& referenceSequence, 
     if (last.position > 0) {
         newCigar.push_back(make_pair(last.position, "M"));
         newCigar.push_back(make_pair(last.length, (last.insertion ? "I" : "D")));
+    } else if (last.position == 0) { // discard floating indels
+	if (last.insertion) newCigar.push_back(make_pair(last.length, "S"));
     } else {
-	// todo, should we keep floating indels?
-	newCigar.push_back(make_pair(last.length, (last.insertion ? "I" : "D")));
+	cerr << "negative indel position " << last << endl;
     }
+
     int lastend = last.insertion ? last.position : (last.position + last.length);
     LEFTALIGN_DEBUG(last << ",");
 
     for (; id != indels.end(); ++id) {
         IndelAllele& indel = *id;
         LEFTALIGN_DEBUG(indel << ",");
-        if (indel.position < lastend) {
+	if ((id + 1) == indels.end()
+	    && (indel.insertion && indel.position == referenceSequence.size() - 1
+		|| (!indel.insertion && indel.position + indel.length == referenceSequence.size() - 1))
+	    ) {
+	    cerr << "hanging indel " << indel << endl;
+	    if (indel.insertion) {
+		if (!newCigar.empty() && newCigar.back().second == "S") {
+		    newCigar.back().first += indel.length;
+		} else {
+		    newCigar.push_back(make_pair(indel.length, "S"));
+		}
+	    }
+	} else if (indel.position < lastend) {
             cerr << "impossibility?: indel realigned left of another indel" << endl;
-            exit(1);
+	    return false;
         } else if (indel.position == lastend) {
 	    if (indel.insertion == last.insertion) {
 		pair<int, string>& op = newCigar.back();
