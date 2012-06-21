@@ -268,6 +268,7 @@ bool leftAlign(string& querySequence, string& cigar, string& referenceSequence, 
         newCigar.push_back(make_pair(last.position, "M"));
         newCigar.push_back(make_pair(last.length, (last.insertion ? "I" : "D")));
     } else {
+	// todo, should we keep floating indels?
 	newCigar.push_back(make_pair(last.length, (last.insertion ? "I" : "D")));
     }
     int lastend = last.insertion ? last.position : (last.position + last.length);
@@ -279,9 +280,28 @@ bool leftAlign(string& querySequence, string& cigar, string& referenceSequence, 
         if (indel.position < lastend) {
             cerr << "impossibility?: indel realigned left of another indel" << endl;
             exit(1);
-        } else if (indel.position == lastend && indel.insertion == last.insertion) {
-            pair<int, string>& op = newCigar.back();
-            op.first += indel.length;
+        } else if (indel.position == lastend) {
+	    if (indel.insertion == last.insertion) {
+		pair<int, string>& op = newCigar.back();
+		op.first += indel.length;
+	    } else { // if the end of the previous == the start of the current, cut it off of both the ins and the del
+		int matchsize = 1;
+		int biggestmatchsize = 0;
+		while (matchsize <= last.sequence.size() && matchsize <= indel.sequence.size()) {
+		    if (last.sequence.substr(last.sequence.size() - matchsize) == indel.sequence.substr(0, matchsize)) {
+			biggestmatchsize = matchsize;
+		    }
+		    ++matchsize;
+		}
+		pair<int, string>& op = newCigar.back();
+		op.first -= biggestmatchsize;
+		// it's probably not necessary to update the last.sequence
+		last.sequence = last.sequence.substr(last.sequence.size() - biggestmatchsize);
+		last.length -= biggestmatchsize;
+		indel.sequence = indel.sequence.substr(0, biggestmatchsize);
+		indel.length -= biggestmatchsize;
+		newCigar.push_back(make_pair(indel.length, (indel.insertion ? "I" : "D")));
+	    }
         } else if (indel.position >= lastend) {  // also catches differential indels, but with the same position
             newCigar.push_back(make_pair(indel.position - lastend, "M"));
             newCigar.push_back(make_pair(indel.length, (indel.insertion ? "I" : "D")));
