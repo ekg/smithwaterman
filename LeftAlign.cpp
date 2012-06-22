@@ -25,6 +25,8 @@
 //
 bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequence, int& offset, bool debug) {
 
+    //debug = true;
+
     string referenceSequence = baseReferenceSequence.substr(offset);
 
     int arsOffset = 0; // pointer to insertion point in aligned reference sequence
@@ -49,18 +51,18 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
         c != cigarData.end(); ++c) {
         unsigned int l = c->first;
         string t = c->second;
-	//cerr << l << t << " " << sp << " " << rp << endl;
+	if (debug) cerr << l << t << " " << sp << " " << rp << endl;
         if (t == "M") { // match or mismatch
             sp += l;
             rp += l;
         } else if (t == "D") { // deletion
             indels.push_back(IndelAllele(false, l, sp, rp, referenceSequence.substr(sp, l)));
-            if (debug) alignedQuerySequence.insert(rp + aabOffset, string(l, '-'));
+            if (debug) { cerr << indels.back() << endl;  alignedQuerySequence.insert(rp + aabOffset, string(l, '-')); }
             aabOffset += l;
             sp += l;  // update reference sequence position
         } else if (t == "I") { // insertion
             indels.push_back(IndelAllele(true, l, sp, rp, querySequence.substr(rp, l)));
-            if (debug) alignedReferenceSequence.insert(sp + softBegin.size() + arsOffset, string(l, '-'));
+            if (debug) { cerr << indels.back() << endl; alignedReferenceSequence.insert(sp + softBegin.size() + arsOffset, string(l, '-')); }
             arsOffset += l;
             rp += l;
         } else if (t == "S") { // soft clip, clipped sequence present in the read not matching the reference
@@ -156,6 +158,7 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
         // GTGTGACGTGT   ---->   GTGTGACGTGT
         //
         //
+
         steppos = indel.position - 1;
         readsteppos = indel.readPosition - 1;
         while (steppos >= 0 && readsteppos >= 0
@@ -273,37 +276,56 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 	// deal with the first indel
 	IndelAllele& indel = indels.front();
 	if (!indel.insertion) { // only handle deletions like this for now
-	    int minsize = indel.length;
+	    int minsize = indel.length + 1;
 	    int flankingLength = indel.readPosition;
 	    string flanking = querySequence.substr(0, flankingLength);
 	    for (int i = 0; i <= indel.length; ++i) {
+		//cerr << i << " " << referenceSequence.substr(i, flankingLength) << endl;
 		if (referenceSequence.substr(i, flankingLength) == flanking) {
-		    minsize = indel.length - i;
+		    minsize = indel.length - i - softBegin.size();
 		}
 	    }
-	    if (minsize > 0 && minsize < indel.length) {
-		offset += indel.length - minsize;
+	    if (minsize >= 0 && minsize <= indel.length) {
+		int diff = indel.length - minsize - softBegin.size();
+		offset += diff;
 		alignedLength -= (indel.length - minsize);
 		indel.length = minsize;
 		indel.sequence = indel.sequence.substr(indel.sequence.size() - minsize);
+		if (!softBegin.empty()) { // remove soft clips if we can
+		    if (flankingLength < softBegin.size()) {
+			softBegin = softBegin.substr(0, flankingLength - softBegin.size());
+		    } else {
+			softBegin.clear();
+		    }
+		}
+		for (vector<IndelAllele>::iterator i = indels.begin(); i != indels.end(); ++i) {
+		    i->position -= diff;
+		}
 	    }
 	}
 
 	if (indels.size() > 1 && !indels.back().insertion) {
 	    IndelAllele& indel = indels.back();
-	    int minsize = indel.length;
+	    int minsize = indel.length + 1;
 	    int flankingLength = querySequence.size() - indel.readPosition;
 	    string flanking = querySequence.substr(indel.readPosition, flankingLength);
 	    for (int i = 0; i <= indel.length; ++i) {
 		if (referenceSequence.substr(referenceSequence.size() - (flankingLength + i), flankingLength) == flanking) {
-		    minsize = indel.length - i;
+		    minsize = indel.length - i - softEnd.size();
 		}
 	    }
-	    if (minsize > 0 && minsize < indel.length) {
-		referenceSequence = referenceSequence.substr(0, referenceSequence.size() - (indel.length - minsize));
+	    if (minsize >= 0 && minsize <= indel.length) {
+		//referenceSequence = referenceSequence.substr(0, referenceSequence.size() - (indel.length - minsize));
 		alignedLength -= (indel.length - minsize);
 		indel.length = minsize;
 		indel.sequence = indel.sequence.substr(indel.sequence.size() - minsize);
+		if (!softEnd.empty()) { // remove soft clips if we can
+		    if (flankingLength < softEnd.size()) {
+			softEnd = softEnd.substr(flankingLength - softEnd.size());
+		    } else {
+			softEnd.clear();
+		    }
+		}
 	    }
 	}
     }
@@ -312,12 +334,22 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
     // TODO
 
     vector<IndelAllele> newIndels;
+    int numEmptyIndels = 0;
 
-    if (indels.size() == 1) {
-	newIndels.push_back(indels.front());
-    } else if (indels.size() > 1) {
-	newIndels.push_back(indels.front());
-        for (vector<IndelAllele>::iterator id = (indels.begin() + 1); id != indels.end(); ++id) {
+    if (!indels.empty()) {
+	vector<IndelAllele>::iterator a = indels.begin();
+	while (newIndels.empty() && a != indels.end()) {
+	    if (a->length > 0 && a->position >= 0) {
+		newIndels.push_back(*a);
+	    } else {
+		++numEmptyIndels;
+	    }
+	    ++a;
+	}
+    }
+
+    if (indels.size() > 1 && !newIndels.empty()) {
+        for (vector<IndelAllele>::iterator id = (indels.begin() + 1 + numEmptyIndels); id != indels.end(); ++id) {
             IndelAllele& indel = *id;
 	    IndelAllele& last = newIndels.back();
 	    int lastend = last.insertion ? last.position : (last.position + last.length);
@@ -387,7 +419,7 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 
     for (; id != newIndels.end(); ++id) {
 	IndelAllele& indel = *id;
-	//cerr << indel << endl;
+	//cerr << indel << " " << *last << endl;
 	LEFTALIGN_DEBUG(indel << ",");
 	if ((id + 1) == newIndels.end()
 	    && (indel.insertion && indel.position == referenceSequence.size() - 1
