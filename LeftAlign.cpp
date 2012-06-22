@@ -47,26 +47,29 @@ bool leftAlign(string& querySequence, string& cigar, string& referenceSequence, 
         c != cigarData.end(); ++c) {
         unsigned int l = c->first;
         string t = c->second;
+	//cerr << l << t << " " << sp << " " << rp << endl;
         if (t == "M") { // match or mismatch
             sp += l;
             rp += l;
         } else if (t == "D") { // deletion
             indels.push_back(IndelAllele(false, l, sp, rp, referenceSequence.substr(sp, l)));
-            //if (debug) alignedQuerySequence.insert(rp + aabOffset, string(l, '-'));
+            if (debug) alignedQuerySequence.insert(rp + aabOffset, string(l, '-'));
             aabOffset += l;
             sp += l;  // update reference sequence position
         } else if (t == "I") { // insertion
             indels.push_back(IndelAllele(true, l, sp, rp, querySequence.substr(rp, l)));
-            //if (debug) alignedReferenceSequence.insert(sp + softBegin.size() + arsOffset, string(l, '-'));
+            if (debug) alignedReferenceSequence.insert(sp + softBegin.size() + arsOffset, string(l, '-'));
             arsOffset += l;
             rp += l;
         } else if (t == "S") { // soft clip, clipped sequence present in the read not matching the reference
             // remove these bases from the refseq and read seq, but don't modify the alignment sequence
             if (rp == 0) {
                 alignedReferenceSequence = string(l, '*') + alignedReferenceSequence;
+		//indels.push_back(IndelAllele(true, l, sp, rp, querySequence.substr(rp, l)));
                 softBegin = querySequence.substr(0, l);
             } else {
                 alignedReferenceSequence = alignedReferenceSequence + string(l, '*');
+		//indels.push_back(IndelAllele(true, l, sp, rp, querySequence.substr(rp, l)));
                 softEnd = querySequence.substr(querySequence.size() - l, l);
             }
             rp += l;
@@ -78,6 +81,7 @@ bool leftAlign(string& querySequence, string& cigar, string& referenceSequence, 
 
 
     int alignedLength = sp;
+
 
     if (debug) cerr << "| " << cigarbefore << endl
 		    << "| " << alignedReferenceSequence << endl
@@ -186,7 +190,7 @@ bool leftAlign(string& querySequence, string& cigar, string& referenceSequence, 
             if (previous->insertion == indel.insertion
                     && ((previous->insertion
                         && (previous->position < indel.position
-                        && previous->readPosition + previous->readPosition < indel.readPosition))
+                        && previous->readPosition < indel.readPosition))
                         ||
                         (!previous->insertion
                         && (previous->position + previous->length < indel.position)
@@ -195,12 +199,12 @@ bool leftAlign(string& querySequence, string& cigar, string& referenceSequence, 
                 if (previous->homopolymer()) {
                     string seq = referenceSequence.substr(prev_end_ref, indel.position - prev_end_ref);
                     string readseq = querySequence.substr(prev_end_read, indel.position - prev_end_ref);
-                    LEFTALIGN_DEBUG("seq: " << seq << endl << "readseq: " << readseq << endl);
+                    //cerr << "seq: " << seq << endl << "readseq: " << readseq << endl;
                     if (previous->sequence.at(0) == seq.at(0)
                             && homopolymer(seq)
                             && homopolymer(readseq)) {
-                        LEFTALIGN_DEBUG("moving " << *previous << " right to " 
-                                << (indel.insertion ? indel.position : indel.position - previous->length) << endl);
+                        //cerr << "moving " << *previous << " right to " 
+                        //        << (indel.insertion ? indel.position : indel.position - previous->length) << endl;
                         previous->position = indel.insertion ? indel.position : indel.position - previous->length;
                     }
                 } 
@@ -302,6 +306,53 @@ bool leftAlign(string& querySequence, string& cigar, string& referenceSequence, 
 	}
     }
 
+    // if soft clipping can be reduced by adjusting the tailing indels in the read, do it
+    // TODO
+
+    vector<IndelAllele> newIndels;
+
+    if (indels.size() == 1) {
+	newIndels.push_back(indels.front());
+    } else if (indels.size() > 1) {
+	newIndels.push_back(indels.front());
+        for (vector<IndelAllele>::iterator id = (indels.begin() + 1); id != indels.end(); ++id) {
+            IndelAllele& indel = *id;
+	    IndelAllele& last = newIndels.back();
+	    int lastend = last.insertion ? last.position : (last.position + last.length);
+	    if (indel.position == lastend) {
+		//cerr << "indel.position " << indel.position << " lastend " << lastend << endl;
+		if (indel.insertion == last.insertion) {
+		    last.length += indel.length;
+		    last.sequence += indel.sequence;
+		} else if (last.length && indel.length) { // if the end of the previous == the start of the current, cut it off of both the ins and the del
+		    //cerr << "Merging " << last << " " << indel << endl;
+		    int matchsize = 1;
+		    int biggestmatchsize = 0;
+		    while (matchsize <= last.sequence.size() && matchsize <= indel.sequence.size()) {
+			if (last.sequence.substr(last.sequence.size() - matchsize) == indel.sequence.substr(0, matchsize)) {
+			    biggestmatchsize = matchsize;
+			}
+			++matchsize;
+		    }
+		    //cerr << "biggestmatchsize " << biggestmatchsize << endl;
+
+		    last.sequence = last.sequence.substr(0, last.sequence.size() - biggestmatchsize);
+		    last.length -= biggestmatchsize;
+		    indel.sequence = indel.sequence.substr(biggestmatchsize);
+		    indel.length -= biggestmatchsize;
+		    if (indel.insertion) indel.readPosition += biggestmatchsize;
+		    else indel.position += biggestmatchsize;
+
+		    if (indel.length > 0) {
+			newIndels.push_back(indel);
+		    }
+		}
+	    } else {
+		newIndels.push_back(indel);
+	    }
+	}
+    }
+
     // for each indel
     //     if ( we're matched up to the previous insertion (or deletion) 
     //          and it's also an insertion or deletion )
@@ -315,27 +366,28 @@ bool leftAlign(string& querySequence, string& cigar, string& referenceSequence, 
     vector<pair<int, string> > newCigar;
 
     if (!softBegin.empty()) {
-        newCigar.push_back(make_pair(softBegin.size(), "S"));
+	newCigar.push_back(make_pair(softBegin.size(), "S"));
     }
 
-    vector<IndelAllele>::iterator id = indels.begin();
-    IndelAllele last = *id++;
-    if (last.position > 0) {
-        newCigar.push_back(make_pair(last.position, "M"));
-        newCigar.push_back(make_pair(last.length, (last.insertion ? "I" : "D")));
-    } else if (last.position == 0) { // discard floating indels
-	if (last.insertion) newCigar.push_back(make_pair(last.length, "S"));
+    vector<IndelAllele>::iterator id = newIndels.begin();
+    vector<IndelAllele>::iterator last = id++;
+    if (last->position > 0) {
+	newCigar.push_back(make_pair(last->position, "M"));
+	newCigar.push_back(make_pair(last->length, (last->insertion ? "I" : "D")));
+    } else if (last->position == 0) { // discard floating indels
+	if (last->insertion) newCigar.push_back(make_pair(last->length, "S"));
     } else {
-	cerr << "negative indel position " << last << endl;
+	cerr << "negative indel position " << *last << endl;
     }
 
-    int lastend = last.insertion ? last.position : (last.position + last.length);
-    LEFTALIGN_DEBUG(last << ",");
+    int lastend = last->insertion ? last->position : (last->position + last->length);
+    LEFTALIGN_DEBUG(*last << ",");
 
-    for (; id != indels.end(); ++id) {
-        IndelAllele& indel = *id;
-        LEFTALIGN_DEBUG(indel << ",");
-	if ((id + 1) == indels.end()
+    for (; id != newIndels.end(); ++id) {
+	IndelAllele& indel = *id;
+	//cerr << indel << endl;
+	LEFTALIGN_DEBUG(indel << ",");
+	if ((id + 1) == newIndels.end()
 	    && (indel.insertion && indel.position == referenceSequence.size() - 1
 		|| (!indel.insertion && indel.position + indel.length == referenceSequence.size() - 1))
 	    ) {
@@ -347,41 +399,31 @@ bool leftAlign(string& querySequence, string& cigar, string& referenceSequence, 
 		}
 	    }
 	} else if (indel.position < lastend) {
-            cerr << "impossibility?: indel realigned left of another indel" << endl;
+	    cerr << "impossibility?: indel realigned left of another indel" << endl;
 	    return false;
-        } else if (indel.position == lastend) {
-	    if (indel.insertion == last.insertion) {
+	} else if (indel.position == lastend) {
+	    // how?
+	    if (indel.insertion == last->insertion) {
 		pair<int, string>& op = newCigar.back();
 		op.first += indel.length;
-	    } else { // if the end of the previous == the start of the current, cut it off of both the ins and the del
-		int matchsize = 1;
-		int biggestmatchsize = 0;
-		while (matchsize <= last.sequence.size() && matchsize <= indel.sequence.size()) {
-		    if (last.sequence.substr(last.sequence.size() - matchsize) == indel.sequence.substr(0, matchsize)) {
-			biggestmatchsize = matchsize;
-		    }
-		    ++matchsize;
-		}
-		pair<int, string>& op = newCigar.back();
-		op.first -= biggestmatchsize;
-		last.sequence = last.sequence.substr(0, last.sequence.size() - biggestmatchsize);
-		last.length -= biggestmatchsize;
-		indel.sequence = indel.sequence.substr(biggestmatchsize);
-		indel.length -= biggestmatchsize;
-		if (indel.insertion) indel.readPosition += biggestmatchsize;
-		else indel.position += biggestmatchsize;
-		if (last.length == 0) newCigar.pop_back();
-		if (newCigar.back().second == "M") newCigar.back().first += biggestmatchsize;
-		else newCigar.push_back(make_pair(biggestmatchsize, "M"));
-		if (indel.length > 0) newCigar.push_back(make_pair(indel.length, (indel.insertion ? "I" : "D")));
+	    } else {
+		newCigar.push_back(make_pair(indel.length, (indel.insertion ? "I" : "D")));
 	    }
-        } else if (indel.position >= lastend) {  // also catches differential indels, but with the same position
+        } else if (indel.position > lastend) {  // also catches differential indels, but with the same position
 	    if (newCigar.back().second == "M") newCigar.back().first += indel.position - lastend;
 	    else newCigar.push_back(make_pair(indel.position - lastend, "M"));
             newCigar.push_back(make_pair(indel.length, (indel.insertion ? "I" : "D")));
         }
-        last = *id;
-        lastend = last.insertion ? last.position : (last.position + last.length);
+
+	last = id;
+	lastend = last->insertion ? last->position : (last->position + last->length);
+
+	/*
+	for (vector<pair<int, string> >::iterator c = newCigar.begin(); c != newCigar.end(); ++c)
+	    cerr << c->first << c->second;
+	cerr << endl;
+	*/
+
     }
     
     if (lastend < alignedLength) {
