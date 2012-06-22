@@ -278,15 +278,19 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 	if (!indel.insertion) { // only handle deletions like this for now
 	    int minsize = indel.length + 1;
 	    int flankingLength = indel.readPosition;
+	    if (debug) cerr << indel << endl;
 	    string flanking = querySequence.substr(0, flankingLength);
+	    if (debug) cerr << flanking << endl;
 	    for (int i = 0; i <= indel.length; ++i) {
-		//cerr << i << " " << referenceSequence.substr(i, flankingLength) << endl;
+		if (debug) cerr << i << " " << referenceSequence.substr(i, flankingLength) << endl;
 		if (referenceSequence.substr(i, flankingLength) == flanking) {
 		    minsize = indel.length - i - softBegin.size();
 		}
 	    }
+	    if (debug) cerr << minsize << endl;
 	    if (minsize >= 0 && minsize <= indel.length) {
 		int diff = indel.length - minsize - softBegin.size();
+		if (debug) cerr << indel.length <<" " << minsize << "  " << softBegin.size() << " " << diff  << endl;
 		offset += diff;
 		alignedLength -= (indel.length - minsize);
 		indel.length = minsize;
@@ -298,10 +302,11 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 			softBegin.clear();
 		    }
 		}
-		for (vector<IndelAllele>::iterator i = indels.begin(); i != indels.end(); ++i) {
+		for (vector<IndelAllele>::iterator i = (indels.begin() + 1); i != indels.end(); ++i) {
 		    i->position -= diff;
 		}
 	    }
+	    if (debug) cerr << indel << endl;
 	}
 
 	if (indels.size() > 1 && !indels.back().insertion) {
@@ -354,12 +359,12 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 	    IndelAllele& last = newIndels.back();
 	    int lastend = last.insertion ? last.position : (last.position + last.length);
 	    if (indel.position == lastend) {
-		//cerr << "indel.position " << indel.position << " lastend " << lastend << endl;
+		if (debug) cerr << "indel.position " << indel.position << " lastend " << lastend << endl;
 		if (indel.insertion == last.insertion) {
 		    last.length += indel.length;
 		    last.sequence += indel.sequence;
 		} else if (last.length && indel.length) { // if the end of the previous == the start of the current, cut it off of both the ins and the del
-		    //cerr << "Merging " << last << " " << indel << endl;
+		    if (debug) cerr << "Merging " << last << " " << indel << endl;
 		    int matchsize = 1;
 		    int biggestmatchsize = 0;
 		    while (matchsize <= last.sequence.size() && matchsize <= indel.sequence.size()) {
@@ -368,7 +373,7 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 			}
 			++matchsize;
 		    }
-		    //cerr << "biggestmatchsize " << biggestmatchsize << endl;
+		    if (debug) cerr << "biggestmatchsize " << biggestmatchsize << endl;
 
 		    last.sequence = last.sequence.substr(0, last.sequence.size() - biggestmatchsize);
 		    last.length -= biggestmatchsize;
@@ -419,7 +424,7 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 
     for (; id != newIndels.end(); ++id) {
 	IndelAllele& indel = *id;
-	//cerr << indel << " " << *last << endl;
+	if (debug) cerr << indel << " " << *last << endl;
 	LEFTALIGN_DEBUG(indel << ",");
 	if ((id + 1) == newIndels.end()
 	    && (indel.insertion && indel.position == referenceSequence.size() - 1
