@@ -23,7 +23,9 @@
 //
 // In practice, we must call this function until the alignment is stabilized.
 //
-bool leftAlign(string& querySequence, string& cigar, string& referenceSequence, int& offset, bool debug) {
+bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequence, int& offset, bool debug) {
+
+    string referenceSequence = baseReferenceSequence.substr(offset);
 
     int arsOffset = 0; // pointer to insertion point in aligned reference sequence
     string alignedReferenceSequence, alignedQuerySequence;
@@ -279,7 +281,7 @@ bool leftAlign(string& querySequence, string& cigar, string& referenceSequence, 
 		    minsize = indel.length - i;
 		}
 	    }
-	    if (minsize < indel.length) {
+	    if (minsize > 0 && minsize < indel.length) {
 		offset += indel.length - minsize;
 		alignedLength -= (indel.length - minsize);
 		indel.length = minsize;
@@ -297,7 +299,7 @@ bool leftAlign(string& querySequence, string& cigar, string& referenceSequence, 
 		    minsize = indel.length - i;
 		}
 	    }
-	    if (minsize < indel.length) {
+	    if (minsize > 0 && minsize < indel.length) {
 		referenceSequence = referenceSequence.substr(0, referenceSequence.size() - (indel.length - minsize));
 		alignedLength -= (indel.length - minsize);
 		indel.length = minsize;
