@@ -25,7 +25,7 @@
 //
 bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequence, int& offset, bool debug) {
 
-    //debug = true;
+    debug = false;
 
     string referenceSequence = baseReferenceSequence.substr(offset);
 
@@ -292,7 +292,7 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 		int diff = indel.length - minsize - softBegin.size();
 		if (debug) cerr << indel.length <<" " << minsize << "  " << softBegin.size() << " " << diff  << endl;
 		offset += diff;
-		alignedLength -= (indel.length - minsize);
+		alignedLength -= diff;
 		indel.length = minsize;
 		indel.sequence = indel.sequence.substr(indel.sequence.size() - minsize);
 		if (!softBegin.empty()) { // remove soft clips if we can
@@ -408,13 +408,33 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 	newCigar.push_back(make_pair(softBegin.size(), "S"));
     }
 
+    if (newIndels.empty()) {
+
+	newCigar.push_back(make_pair(alignedLength, "M"));
+
+	if (!softEnd.empty()) {
+	    newCigar.push_back(make_pair(softEnd.size(), "S"));
+	}
+
+	cigar = joinCigar(newCigar);
+
+	// check if we're realigned
+	if (cigar == cigarbefore) {
+	    return false;
+	} else {
+	    return true;
+	}
+    }
+
     vector<IndelAllele>::iterator id = newIndels.begin();
     vector<IndelAllele>::iterator last = id++;
+
     if (last->position > 0) {
 	newCigar.push_back(make_pair(last->position, "M"));
 	newCigar.push_back(make_pair(last->length, (last->insertion ? "I" : "D")));
     } else if (last->position == 0) { // discard floating indels
 	if (last->insertion) newCigar.push_back(make_pair(last->length, "S"));
+	else  newCigar.push_back(make_pair(last->length, "D"));
     } else {
 	cerr << "negative indel position " << *last << endl;
     }
@@ -449,7 +469,7 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 		newCigar.push_back(make_pair(indel.length, (indel.insertion ? "I" : "D")));
 	    }
         } else if (indel.position > lastend) {  // also catches differential indels, but with the same position
-	    if (newCigar.back().second == "M") newCigar.back().first += indel.position - lastend;
+	    if (!newCigar.empty() && newCigar.back().second == "M") newCigar.back().first += indel.position - lastend;
 	    else newCigar.push_back(make_pair(indel.position - lastend, "M"));
             newCigar.push_back(make_pair(indel.length, (indel.insertion ? "I" : "D")));
         }
