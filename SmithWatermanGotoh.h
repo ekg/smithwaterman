@@ -31,7 +31,7 @@ public:
     // enables non-repeat gap open penalty
     void EnableEntropyGapPenalty(float enGapOpenPenalty);
     // enables repeat gap extension penalty
-    void EnableRepeatGapExtensionPenalty(float rGapExtensionPenalty);
+    void EnableRepeatGapExtensionPenalty(float rGapExtensionPenalty, float rMaxGapRepeatExtensionPenaltyFactor = 10);
 private:
     // creates a simple scoring matrix to align the nucleotides and the ambiguity code N
     void CreateScoringMatrix(void);
@@ -87,6 +87,8 @@ private:
     bool mUseRepeatGapExtensionPenalty;
     // specifies the repeat gap extension penalty
     float mRepeatGapExtensionPenalty;
+    // specifies the max repeat gap extension penalty
+    float mMaxRepeatGapExtensionPenalty;
 };
 
 // returns the maximum floating point number

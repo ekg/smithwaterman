@@ -160,6 +160,21 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 			  entropyWindowSize));
     }
 
+    // normalize entropies in 0, 1
+    /*
+    float qnorm = 0;
+    for (vector<float>::iterator q = queryEntropies.begin(); q != queryEntropies.end(); ++q)
+	qnorm == *q;
+    for (vector<float>::iterator q = queryEntropies.begin(); q != queryEntropies.end(); ++q)
+	*q /= qnorm;
+
+    float rnorm = 0;
+    for (vector<float>::iterator r = referenceEntropies.begin(); r != referenceEntropies.end(); ++r)
+	rnorm == *r;
+    for (vector<float>::iterator r = referenceEntropies.begin(); r != referenceEntropies.end(); ++r)
+	*r /= rnorm;
+	*/
+
     //
     // construct
     //
@@ -264,13 +279,18 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 			gaplen = gaplen / repeatsize + repeatsize;
 		    }
 
-		    if (repeat.second > 1 && gaplen + i < s1.length()) {
+		    if ((repeat.first.size() * repeat.second) > 3 && gaplen + i < s1.length()) {
 			string gapseq = string(&s1[i], gaplen);
 			if (gapseq == repeat.first || isRepeatUnit(gapseq, repeat.first)) {
 			    queryGapExtendScore = mQueryGapScores[j]
 				+ mRepeatGapExtensionPenalty / (float) gaplen;
+				//    mMaxRepeatGapExtensionPenalty)
+			} else {
+			    queryGapExtendScore = mQueryGapScores[j] - mGapExtendPenalty;
 			}
 		    }
+		} else {
+		    queryGapExtendScore = mQueryGapScores[j] - mGapExtendPenalty;
 		}
 	    }
 		  
@@ -308,13 +328,18 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 			gaplen = gaplen / repeatsize + repeatsize;
 		    }
 
-		    if (repeat.second > 1 && gaplen + j < s2.length()) {
+		    if ((repeat.first.size() * repeat.second) > 3 && gaplen + j < s2.length()) {
 			string gapseq = string(&s2[j], gaplen);
 			if (gapseq == repeat.first || isRepeatUnit(gapseq, repeat.first)) {
 			    referenceGapExtendScore = currentAnchorGapScore
 				+ mRepeatGapExtensionPenalty / (float) gaplen;
+				//mMaxRepeatGapExtensionPenalty)
+			} else {
+			    referenceGapExtendScore = currentAnchorGapScore - mGapExtendPenalty;
 			}
 		    }
+		} else {
+		    referenceGapExtendScore = currentAnchorGapScore - mGapExtendPenalty;
 		}
 	    }
 
@@ -602,9 +627,10 @@ void CSmithWatermanGotoh::EnableEntropyGapPenalty(float enGapOpenPenalty) {
 }
 
 // enables repeat-aware gap extension penalty
-void CSmithWatermanGotoh::EnableRepeatGapExtensionPenalty(float rGapExtensionPenalty) {
+void CSmithWatermanGotoh::EnableRepeatGapExtensionPenalty(float rGapExtensionPenalty, float rMaxGapRepeatExtensionPenaltyFactor) {
     mUseRepeatGapExtensionPenalty = true;
     mRepeatGapExtensionPenalty    = rGapExtensionPenalty;
+    mMaxRepeatGapExtensionPenalty = rMaxGapRepeatExtensionPenaltyFactor * rGapExtensionPenalty;
 }
 
 // corrects the homopolymer gap order for forward alignments
