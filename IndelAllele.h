@@ -15,6 +15,8 @@ class IndelAllele {
 public:
     bool insertion;
     int length;
+    int referenceLength(void);
+    int readLength(void);
     int position;
     int readPosition;
     string sequence;

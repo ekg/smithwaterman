@@ -12,6 +12,22 @@ bool IndelAllele::homopolymer(void) {
     return true;
 }
 
+int IndelAllele::readLength(void) {
+    if (insertion) {
+	return length;
+    } else {
+	return 0;
+    }
+}
+
+int IndelAllele::referenceLength(void) {
+    if (insertion) {
+	return 0;
+    } else {
+	return length;
+    }
+}
+
 bool homopolymer(string sequence) {
     string::iterator s = sequence.begin();
     char c = *s++;

@@ -113,6 +113,7 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
         int steppos, readsteppos;
         IndelAllele& indel = *id;
         int i = 1;
+
         while (i <= indel.length) {
 
             int steppos = indel.position - i;
@@ -169,7 +170,7 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
                && (id == indels.begin()
                    || (previous->insertion && indel.position - 1 >= previous->position)
                    || (!previous->insertion && indel.position - 1 >= previous->position + previous->length))) {
-            LEFTALIGN_DEBUG((indel.insertion ? "insertion " : "deletion ") << indel << " exchanging bases " << 1 << "bp left" << endl);
+            if (debug) cerr << (indel.insertion ? "insertion " : "deletion ") << indel << " exchanging bases " << 1 << "bp left" << endl;
             indel.sequence = indel.sequence.at(indel.sequence.size() - 1) + indel.sequence.substr(0, indel.sequence.size() - 1);
             indel.position -= 1;
             indel.readPosition -= 1;
@@ -179,6 +180,8 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
         // tracks previous indel, so we don't run into it with the next shift
         previous = id;
     }
+
+    if (debug) cerr << "bring together floating indels" << endl;
 
     // bring together floating indels
     // from left to right
@@ -204,12 +207,12 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
                 if (previous->homopolymer()) {
                     string seq = referenceSequence.substr(prev_end_ref, indel.position - prev_end_ref);
                     string readseq = querySequence.substr(prev_end_read, indel.position - prev_end_ref);
-                    //cerr << "seq: " << seq << endl << "readseq: " << readseq << endl;
+                    if (debug) cerr << "seq: " << seq << endl << "readseq: " << readseq << endl;
                     if (previous->sequence.at(0) == seq.at(0)
                             && homopolymer(seq)
                             && homopolymer(readseq)) {
-                        //cerr << "moving " << *previous << " right to " 
-                        //        << (indel.insertion ? indel.position : indel.position - previous->length) << endl;
+                        if (debug) cerr << "moving " << *previous << " right to " 
+					<< (indel.insertion ? indel.position : indel.position - previous->length) << endl;
                         previous->position = indel.insertion ? indel.position : indel.position - previous->length;
                     }
                 } 
@@ -257,6 +260,8 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
             previous = id;
         }
     }
+
+    if (debug) cerr << "bring in indels at ends of read" << endl;
 
     // try to "bring in" repeat indels at the end, for maximum parsimony
     //
@@ -315,9 +320,12 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 	    int flankingLength = querySequence.size() - indel.readPosition;
 	    string flanking = querySequence.substr(indel.readPosition, flankingLength);
 	    for (int i = 0; i <= indel.length; ++i) {
+		cerr << i << endl;
+		cerr << referenceSequence.size() << " " << flankingLength + i << " " << flankingLength << endl;
 		if (referenceSequence.substr(referenceSequence.size() - (flankingLength + i), flankingLength) == flanking) {
 		    minsize = indel.length - i - softEnd.size();
 		}
+		cerr << "..." << endl;
 	    }
 	    if (minsize >= 0 && minsize <= indel.length) {
 		//referenceSequence = referenceSequence.substr(0, referenceSequence.size() - (indel.length - minsize));
@@ -387,7 +395,66 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 		    }
 		}
 	    } else {
-		newIndels.push_back(indel);
+		if (last.insertion != indel.insertion) {
+		    // see if we can slide the sequence in between these two indels together
+		    string lastOverlapSeq;
+		    if (last.insertion) {
+			lastOverlapSeq = last.sequence
+			    + querySequence.substr(last.readPosition + last.length,
+						   indel.readPosition - (last.readPosition + last.length));
+		    } else {
+			lastOverlapSeq = last.sequence
+			    + referenceSequence.substr(last.position + last.length,
+						       indel.position - (last.position + last.length));
+		    }
+		    string indelOverlapSeq;
+		    if (indel.insertion) {
+			indelOverlapSeq =
+			    querySequence.substr(last.readPosition + last.readLength(),
+						   indel.readPosition - last.readPosition + last.readLength())
+			    + indel.sequence;
+		    } else {
+			indelOverlapSeq =
+			    referenceSequence.substr(last.position + last.referenceLength(),
+						       indel.position - last.position + last.referenceLength())
+			    + indel.sequence;
+		    }
+
+		    /*
+		    if (last.insertion) cerr << string(last.length, '-');
+		    cerr << lastOverlapSeq;
+		    if (indel.insertion) cerr << string(indel.length, '-');
+		    cerr << endl;
+		    if (!last.insertion) cerr << string(last.length, '-');
+		    cerr << indelOverlapSeq;
+		    if (!indel.insertion) cerr << string(indel.length, '-');
+		    cerr << endl;*/
+
+
+		    int dist = min(last.length, indel.length);
+		    int smallestBetween = indel.position - last.position;
+		    //cerr << "smallestBetween " << smallestBetween << endl;
+		    //cerr << "dist " << dist << endl;
+		    int mindist = smallestBetween - dist;
+		    for (int i = 0; i < dist; ++i) {
+			//cerr << i << endl;
+			//cerr << "lastoverlap: " << lastOverlapSeq.substr(i) << "  thisoverlap: " << indelOverlapSeq.substr(0, indelOverlapSeq.size() - i) << endl;
+			if (lastOverlapSeq.substr(i) == indelOverlapSeq.substr(0, indelOverlapSeq.size() - i))
+			    smallestBetween = i;
+		    }
+
+		    if (smallestBetween < indel.position - last.position) {
+			last.length = last.length - smallestBetween;
+			last.sequence = last.sequence.substr(0, last.sequence.size() - smallestBetween);
+			indel.position += indel.length - smallestBetween;
+			indel.readPosition += indel.length - smallestBetween;
+			indel.length = indel.length - smallestBetween;
+			indel.sequence = indel.sequence.substr(smallestBetween);
+		    }
+		    newIndels.push_back(indel);
+		} else {
+		    newIndels.push_back(indel);
+		}
 	    }
 	}
     }
