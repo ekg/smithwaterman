@@ -25,7 +25,7 @@
 //
 bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequence, int& offset, bool debug) {
 
-    debug = false;;
+    debug = false;
 
     string referenceSequence = baseReferenceSequence.substr(offset);
 
@@ -163,7 +163,7 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
         steppos = indel.position - 1;
         readsteppos = indel.readPosition - 1;
         while (steppos >= 0 && readsteppos >= 0
-               //`&& querySequence.at(readsteppos) == referenceSequence.at(steppos)
+               && querySequence.at(readsteppos) == referenceSequence.at(steppos)
 	       && referenceSequence.size() > steppos + indel.length
 	       && indel.sequence.at((int) indel.sequence.size() - 1) == referenceSequence.at(steppos + indel.length) // are the exchanged bases going to match wrt. the reference?
                && querySequence.at(readsteppos) == indel.sequence.at((int) indel.sequence.size() - 1)
@@ -277,10 +277,15 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
     //
     // here we take the parsimonious explanation
 
+    if (debug) {
+	for (vector<IndelAllele>::iterator a = indels.begin(); a != indels.end(); ++a) cerr << *a << " ";
+	cerr << endl;
+    }
+
     if (!indels.empty()) {
 	// deal with the first indel
 	IndelAllele& indel = indels.front();
-	if (!indel.insertion) { // only handle deletions like this for now
+	if (!indel.insertion && !(indels.size() > 1 && indel.readPosition == indels.at(1).readPosition)) { // only handle deletions like this for now
 	    int minsize = indel.length + 1;
 	    int flankingLength = indel.readPosition;
 	    if (debug) cerr << indel << endl;
@@ -295,18 +300,21 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 	    if (debug) cerr << minsize << endl;
 	    if (minsize >= 0 && minsize <= indel.length) {
 		int diff = indel.length - minsize - softBegin.size();
-		if (debug) cerr << indel.length <<" " << minsize << "  " << softBegin.size() << " " << diff  << endl;
+		if (debug) cerr << "adjusting " << indel.length <<" " << minsize << "  " << softBegin.size() << " " << diff  << endl;
 		offset += diff;
 		alignedLength -= diff;
 		indel.length = minsize;
 		indel.sequence = indel.sequence.substr(indel.sequence.size() - minsize);
+		int softdiff = softBegin.size();
 		if (!softBegin.empty()) { // remove soft clips if we can
 		    if (flankingLength < softBegin.size()) {
 			softBegin = softBegin.substr(0, flankingLength - softBegin.size());
+			softdiff -= softBegin.size();
 		    } else {
 			softBegin.clear();
 		    }
 		}
+		indel.position += softdiff;
 		for (vector<IndelAllele>::iterator i = (indels.begin() + 1); i != indels.end(); ++i) {
 		    i->position -= diff;
 		}
@@ -317,15 +325,13 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 	if (indels.size() > 1 && !indels.back().insertion) {
 	    IndelAllele& indel = indels.back();
 	    int minsize = indel.length + 1;
-	    int flankingLength = querySequence.size() - indel.readPosition;
+	    int flankingLength = querySequence.size() - indel.readPosition - softEnd.size();
 	    string flanking = querySequence.substr(indel.readPosition, flankingLength);
 	    for (int i = 0; i <= indel.length; ++i) {
-		//cerr << i << endl;
-		//cerr << referenceSequence.size() << " " << flankingLength + i << " " << flankingLength << endl;
+		if (debug) cerr << i << " " << referenceSequence.size() << " " << flankingLength + i << " " << flankingLength << endl;
 		if (referenceSequence.substr(referenceSequence.size() - (flankingLength + i), flankingLength) == flanking) {
 		    minsize = indel.length - i - softEnd.size();
 		}
-		//cerr << "..." << endl;
 	    }
 	    if (minsize >= 0 && minsize <= indel.length) {
 		//referenceSequence = referenceSequence.substr(0, referenceSequence.size() - (indel.length - minsize));
@@ -343,6 +349,13 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 	}
     }
 
+    if (debug) {
+	for (vector<IndelAllele>::iterator a = indels.begin(); a != indels.end(); ++a) cerr << *a << " ";
+	cerr << endl;
+    }
+
+    if (debug) cerr << "parsing indels" << endl;
+
     // if soft clipping can be reduced by adjusting the tailing indels in the read, do it
     // TODO
 
@@ -352,6 +365,7 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
     if (!indels.empty()) {
 	vector<IndelAllele>::iterator a = indels.begin();
 	while (newIndels.empty() && a != indels.end()) {
+	    if (debug) cerr << *a << endl;
 	    if (a->length > 0 && a->position >= 0) {
 		newIndels.push_back(*a);
 	    } else {
@@ -396,61 +410,75 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 		}
 	    } else {
 		if (last.insertion != indel.insertion) {
+		    if (debug) cerr << "merging by overlap " << last << " " << indel << endl;
 		    // see if we can slide the sequence in between these two indels together
 		    string lastOverlapSeq;
 		    if (last.insertion) {
 			lastOverlapSeq = last.sequence
-			    + querySequence.substr(last.readPosition + last.length,
-						   indel.readPosition - (last.readPosition + last.length));
+			    + querySequence.substr(last.readPosition + last.readLength(),
+						   indel.readPosition - (last.readPosition + last.readLength()));
 		    } else {
 			lastOverlapSeq = last.sequence
-			    + referenceSequence.substr(last.position + last.length,
-						       indel.position - (last.position + last.length));
+			    + referenceSequence.substr(last.position + last.referenceLength(),
+						       indel.position - (last.position + last.referenceLength()));
 		    }
 		    string indelOverlapSeq;
 		    if (indel.insertion) {
 			indelOverlapSeq =
 			    querySequence.substr(last.readPosition + last.readLength(),
-						   indel.readPosition - last.readPosition + last.readLength())
+						 indel.readPosition - last.readPosition + last.readLength())
 			    + indel.sequence;
 		    } else {
 			indelOverlapSeq =
 			    referenceSequence.substr(last.position + last.referenceLength(),
-						       indel.position - last.position + last.referenceLength())
+						     indel.position - last.position + last.referenceLength())
 			    + indel.sequence;
 		    }
 
-		    /*
-		    if (last.insertion) cerr << string(last.length, '-');
-		    cerr << lastOverlapSeq;
-		    if (indel.insertion) cerr << string(indel.length, '-');
-		    cerr << endl;
-		    if (!last.insertion) cerr << string(last.length, '-');
-		    cerr << indelOverlapSeq;
-		    if (!indel.insertion) cerr << string(indel.length, '-');
-		    cerr << endl;*/
+		    if (debug) {
+			if (!last.insertion) {
+			    if (last.insertion) cerr << string(last.length, '-');
+			    cerr << lastOverlapSeq;
+			    if (indel.insertion) cerr << string(indel.length, '-');
+			    cerr << endl;
+			    if (!last.insertion) cerr << string(last.length, '-');
+			    cerr << indelOverlapSeq;
+			    if (!indel.insertion) cerr << string(indel.length, '-');
+			    cerr << endl;
+			} else {
+			    if (last.insertion) cerr << string(last.length, '-');
+			    cerr << indelOverlapSeq;
+			    if (indel.insertion) cerr << string(indel.length, '-');
+			    cerr << endl;
+			    if (!last.insertion) cerr << string(last.length, '-');
+			    cerr << lastOverlapSeq;
+			    if (!indel.insertion) cerr << string(indel.length, '-');
+			    cerr << endl;
+			}
+		    }
 
 
 		    int dist = min(last.length, indel.length);
-		    int smallestBetween = indel.position - last.position;
-		    //cerr << "smallestBetween " << smallestBetween << endl;
-		    //cerr << "dist " << dist << endl;
-		    int mindist = smallestBetween - dist;
-		    for (int i = 0; i < dist; ++i) {
-			//cerr << i << endl;
-			//cerr << "lastoverlap: " << lastOverlapSeq.substr(i) << "  thisoverlap: " << indelOverlapSeq.substr(0, indelOverlapSeq.size() - i) << endl;
-			if (lastOverlapSeq.substr(i) == indelOverlapSeq.substr(0, indelOverlapSeq.size() - i))
-			    smallestBetween = i;
+		    int matchingInBetween = indel.position - last.position;
+		    if (debug) cerr << "matchingInBetween " << matchingInBetween << endl;
+		    if (debug) cerr << "dist " << dist << endl;
+		    int mindist = matchingInBetween - dist;
+		    for (int i = 1; i <= dist; ++i) {
+			if (debug) cerr << i << endl;
+			if (debug) cerr << "lastoverlap: " << lastOverlapSeq.substr(lastOverlapSeq.size() - i) << "  thisoverlap: " << indelOverlapSeq.substr(0, i) << endl;
+			if (lastOverlapSeq.substr(lastOverlapSeq.size() - i) == indelOverlapSeq.substr(0, i))
+			    matchingInBetween = i;
 		    }
 
-		    if (smallestBetween < indel.position - last.position) {
-			last.length = last.length - smallestBetween;
-			last.sequence = last.sequence.substr(0, last.sequence.size() - smallestBetween);
-			indel.position += indel.length - smallestBetween;
-			indel.readPosition += indel.length - smallestBetween;
-			indel.length = indel.length - smallestBetween;
-			indel.sequence = indel.sequence.substr(smallestBetween);
-		    }
+		    if (matchingInBetween > 0 && matchingInBetween < indel.position - last.position) {
+			if (debug) cerr << "matching " << matchingInBetween  << "bp between " << last << " " << indel << endl;
+			last.length -= matchingInBetween;
+			last.sequence = last.sequence.substr(0, last.length);
+			indel.length -= matchingInBetween;
+			indel.sequence = indel.sequence.substr(matchingInBetween);
+		    }// else if (matchingInBetween == 0 || matchingInBetween == indel.position - last.position) {
+			//if (!newIndels.empty()) newIndels.pop_back();
+		    //} //else { newIndels.push_back(indel); }
 		    newIndels.push_back(indel);
 		} else {
 		    newIndels.push_back(indel);
