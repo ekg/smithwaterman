@@ -459,23 +459,31 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 
 
 		    int dist = min(last.length, indel.length);
-		    int matchingInBetween = indel.position - last.position;
+		    int matchingInBetween = indel.position - (last.position + last.referenceLength());
+		    int previousMatchingInBetween = matchingInBetween;
+		    //int matchingInBetween = indel.position - last.position;
 		    if (debug) cerr << "matchingInBetween " << matchingInBetween << endl;
 		    if (debug) cerr << "dist " << dist << endl;
 		    int mindist = matchingInBetween - dist;
-		    for (int i = 1; i <= dist; ++i) {
-			if (debug) cerr << i << endl;
-			if (debug) cerr << "lastoverlap: " << lastOverlapSeq.substr(lastOverlapSeq.size() - i) << "  thisoverlap: " << indelOverlapSeq.substr(0, i) << endl;
-			if (lastOverlapSeq.substr(lastOverlapSeq.size() - i) == indelOverlapSeq.substr(0, i))
-			    matchingInBetween = i;
+		    if (lastOverlapSeq == indelOverlapSeq) {
+			matchingInBetween = lastOverlapSeq.size();
+		    } else {
+			for (int i = 1; i < dist; ++i) {
+			    if (debug) cerr << "lastoverlap: " << lastOverlapSeq.substr(lastOverlapSeq.size() - matchingInBetween - i) << " thisoverlap: " << indelOverlapSeq.substr(0, i + matchingInBetween) << endl;
+			    if (lastOverlapSeq.substr(lastOverlapSeq.size() - i) == indelOverlapSeq.substr(0, i)) {
+				matchingInBetween = i;
+			    }
+			}
 		    }
-
-		    if (matchingInBetween > 0 && matchingInBetween < indel.position - last.position) {
-			if (debug) cerr << "matching " << matchingInBetween  << "bp between " << last << " " << indel << endl;
-			last.length -= matchingInBetween;
+		    //cerr << last << " " << indel << endl;
+		    if (matchingInBetween > 0 && matchingInBetween > previousMatchingInBetween) {
+			if (debug) cerr << "matching " << matchingInBetween  << "bp between " << last << " " << indel
+				        << " was matching " << previousMatchingInBetween << endl;
+			last.length -= matchingInBetween - previousMatchingInBetween;
 			last.sequence = last.sequence.substr(0, last.length);
-			indel.length -= matchingInBetween;
-			indel.sequence = indel.sequence.substr(matchingInBetween);
+			indel.length -= matchingInBetween - previousMatchingInBetween;
+			indel.sequence = indel.sequence.substr(matchingInBetween - previousMatchingInBetween);
+			if (debug) cerr << last << " " << indel << endl;
 		    }// else if (matchingInBetween == 0 || matchingInBetween == indel.position - last.position) {
 			//if (!newIndels.empty()) newIndels.pop_back();
 		    //} //else { newIndels.push_back(indel); }
