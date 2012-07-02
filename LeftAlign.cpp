@@ -25,7 +25,7 @@
 //
 bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequence, int& offset, bool debug) {
 
-    debug = false;
+    debug = false;;
 
     string referenceSequence = baseReferenceSequence.substr(offset);
 
@@ -320,12 +320,12 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 	    int flankingLength = querySequence.size() - indel.readPosition;
 	    string flanking = querySequence.substr(indel.readPosition, flankingLength);
 	    for (int i = 0; i <= indel.length; ++i) {
-		cerr << i << endl;
-		cerr << referenceSequence.size() << " " << flankingLength + i << " " << flankingLength << endl;
+		//cerr << i << endl;
+		//cerr << referenceSequence.size() << " " << flankingLength + i << " " << flankingLength << endl;
 		if (referenceSequence.substr(referenceSequence.size() - (flankingLength + i), flankingLength) == flanking) {
 		    minsize = indel.length - i - softEnd.size();
 		}
-		cerr << "..." << endl;
+		//cerr << "..." << endl;
 	    }
 	    if (minsize >= 0 && minsize <= indel.length) {
 		//referenceSequence = referenceSequence.substr(0, referenceSequence.size() - (indel.length - minsize));
