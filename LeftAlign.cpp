@@ -214,6 +214,7 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
                         if (debug) cerr << "moving " << *previous << " right to " 
 					<< (indel.insertion ? indel.position : indel.position - previous->length) << endl;
                         previous->position = indel.insertion ? indel.position : indel.position - previous->length;
+			previous->readPosition = !indel.insertion ? indel.readPosition : indel.readPosition - previous->readLength(); // should this be readLength?
                     }
                 } 
                 else {
@@ -297,10 +298,11 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 	    if (debug) cerr << indel << endl;
 	    string flanking = querySequence.substr(0, flankingLength);
 	    if (debug) cerr << flanking << endl;
-	    for (int i = 0; i <= indel.length; ++i) {
+	    for (int i = indel.length; i >= 0; --i) {
 		if (debug) cerr << i << " " << referenceSequence.substr(i, flankingLength) << " " << flanking << endl;
 		if (referenceSequence.substr(i, flankingLength) == flanking) {
 		    minsize = indel.length - i - softBegin.size();
+		    break;
 		}
 	    }
 	    if (debug) cerr << minsize << endl;
@@ -346,21 +348,22 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 		int flankingLength = querySequence.size() - indel.readPosition + indel.readLength();
 		string flanking = querySequence.substr(indel.readPosition + indel.readLength(), flankingLength);
 		int indelRefEnd = indel.position + indel.referenceLength();
-		for (int i = 0; i <= indel.length; ++i) {
+		for (int i = indel.length; i >= 0; --i) {
 		    if (indelRefEnd - i + flankingLength > referenceSequence.size())
 			continue;
 		    if (debug) cerr << i << " " << referenceSequence.substr(indelRefEnd - i, flankingLength) << " " << flanking << endl;
 		    if (referenceSequence.substr(indelRefEnd - i, flankingLength) == flanking) {
 			minsize = indel.length - i;
+			break;
 		    }
 		}
 		if (debug) cerr << "minsize " << minsize << endl;
 		if (minsize >= 0 && minsize <= indel.length) {
 		    //referenceSequence = referenceSequence.substr(0, referenceSequence.size() - (indel.length - minsize));
 		    //cerr << indel << endl;
+		    alignedLength -= indel.referenceLength() - minsize;
 		    indel.length = minsize;
 		    indel.sequence = indel.sequence.substr(0, minsize);
-		    alignedLength = indel.position + indel.referenceLength() + flankingLength;
 		    //cerr << indel << endl;
 		    if (!softEnd.empty()) { // remove soft clips if we can
 			if (flankingLength < softEnd.size()) {
@@ -370,7 +373,8 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 			}
 		    }
 		    for (vector<IndelAllele>::iterator i = indels.begin(); i != indels.end(); ++i) {
-			if (i > biggestDel) { i->length = 0; // remove
+			if (i > biggestDel) {
+			    i->length = 0; // remove
 			}
 		    }
 		}
@@ -497,7 +501,7 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 		    if (lastOverlapSeq == indelOverlapSeq) {
 			matchingInBetween = lastOverlapSeq.size();
 		    } else {
-			for (int i = 1; i <= dist; ++i) {
+			for (int i = dist; i > 0; --i) {
 			    if (debug) cerr << "lastoverlap: "
 					    << lastOverlapSeq.substr(lastOverlapSeq.size() - previousMatchingInBetween - i)
 					    << " thisoverlap: "
@@ -505,6 +509,7 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 			    if (lastOverlapSeq.substr(lastOverlapSeq.size() - previousMatchingInBetween - i)
 				== indelOverlapSeq.substr(0, i + previousMatchingInBetween)) {
 				matchingInBetween = previousMatchingInBetween + i;
+				break;
 			    }
 			}
 		    }
@@ -580,6 +585,7 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 
     for (; id != newIndels.end(); ++id) {
 	IndelAllele& indel = *id;
+	if (indel.length == 0) continue; // remove 0-length indels
 	if (debug) cerr << indel << " " << *last << endl;
 	LEFTALIGN_DEBUG(indel << ",");
 	if ((id + 1) == newIndels.end()
@@ -613,17 +619,19 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 	last = id;
 	lastend = last->insertion ? last->position : (last->position + last->length);
 
-	/*
-	for (vector<pair<int, string> >::iterator c = newCigar.begin(); c != newCigar.end(); ++c)
-	    cerr << c->first << c->second;
-	cerr << endl;
-	*/
+	if (debug) {
+	    for (vector<pair<int, string> >::iterator c = newCigar.begin(); c != newCigar.end(); ++c)
+		cerr << c->first << c->second;
+	    cerr << endl;
+	}
 
     }
-    
-    if (lastend < alignedLength) {
-	if (newCigar.back().second == "M") newCigar.back().first += alignedLength - lastend;
-	else newCigar.push_back(make_pair(alignedLength - lastend, "M"));
+
+    int remainingReadBp = querySequence.size() - (last->readPosition + last->readLength()) - softEnd.size();
+    if (remainingReadBp > 0) {
+	if (debug) cerr << "bp remaining = " << remainingReadBp << endl;
+	if (newCigar.back().second == "M") newCigar.back().first += remainingReadBp;
+	else newCigar.push_back(make_pair(remainingReadBp, "M"));
     }
 
     if (!softEnd.empty()) {
