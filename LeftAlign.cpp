@@ -25,7 +25,7 @@
 //
 bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequence, int& offset, bool debug) {
 
-    debug = false;
+    debug = true;
 
     string referenceSequence = baseReferenceSequence.substr(offset);
 
@@ -82,9 +82,6 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
             sp += l;
         }
     }
-
-
-    int alignedLength = sp;
 
 
     if (debug) cerr << "| " << cigarbefore << endl
@@ -292,15 +289,18 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 	if (!biggestDel->insertion) {
 	    //if (!indel.insertion) { // only handle deletions like this for now
 	    //if (!indel.insertion && !(indels.size() > 1 && indel.readPosition == indels.at(1).readPosition)) { // only handle deletions like this for now
+	    int insertedBpBefore = 0;
+	    for (vector<IndelAllele>::iterator i = indels.begin(); i != biggestDel; ++i)
+		if (i->insertion) insertedBpBefore += i->length;
 	    IndelAllele& indel = *biggestDel;
 	    int minsize = indel.length + 1;
 	    int flankingLength = indel.readPosition;
 	    if (debug) cerr << indel << endl;
 	    string flanking = querySequence.substr(0, flankingLength);
 	    if (debug) cerr << flanking << endl;
-	    for (int i = indel.length; i >= 0; --i) {
-		if (debug) cerr << i << " " << referenceSequence.substr(i, flankingLength) << " " << flanking << endl;
-		if (referenceSequence.substr(i, flankingLength) == flanking) {
+	    for (int i = indel.length; i - insertedBpBefore > 0; --i) {
+		if (debug) cerr << i << " " << referenceSequence.substr(i - insertedBpBefore, flankingLength) << " " << flanking << endl;
+		if (referenceSequence.substr(i - insertedBpBefore, flankingLength) == flanking) {
 		    minsize = indel.length - i - softBegin.size();
 		    break;
 		}
@@ -308,6 +308,7 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 	    if (debug) cerr << minsize << endl;
 
 	    if (minsize >= 0 && minsize < indel.length) {
+		/*
 		int removedInsBp = 0;
 		int removedDelBp = 0;
 		for (vector<IndelAllele>::iterator i = indels.begin(); i != indels.end(); ++i) {
@@ -316,11 +317,13 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 			else { removedInsBp += i->length; }
 		    }
 		}
-		minsize += removedDelBp;
-		int diff = indel.length - minsize - softBegin.size() + removedDelBp;
+		*/
+
+		int diff = indel.length - minsize - softBegin.size() - insertedBpBefore;;
 		if (debug) cerr << "adjusting " << indel.length <<" " << minsize << "  " << softBegin.size() << " " << diff  << endl;
 		offset += diff;
-		alignedLength -= diff;
+		cerr << diff << endl;
+		///
 		indel.length = minsize;
 		indel.sequence = indel.sequence.substr(indel.sequence.size() - minsize);
 		int softdiff = softBegin.size();
@@ -334,7 +337,9 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 		}
 		indel.position += softdiff;
 		for (vector<IndelAllele>::iterator i = indels.begin(); i != indels.end(); ++i) {
-		    if (i < biggestDel) { i->length = 0; // remove
+		    if (i < biggestDel) {
+			cerr << *i << " removing " << endl;
+			i->length = 0; // remove
 		    } else if (i > biggestDel) {
 			i->position -= diff;
 		    }
@@ -348,7 +353,7 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 		int flankingLength = querySequence.size() - indel.readPosition + indel.readLength();
 		string flanking = querySequence.substr(indel.readPosition + indel.readLength(), flankingLength);
 		int indelRefEnd = indel.position + indel.referenceLength();
-		for (int i = indel.length; i >= 0; --i) {
+		for (int i = indel.length; i > 0; --i) {
 		    if (indelRefEnd - i + flankingLength > referenceSequence.size())
 			continue;
 		    if (debug) cerr << i << " " << referenceSequence.substr(indelRefEnd - i, flankingLength) << " " << flanking << endl;
@@ -361,7 +366,6 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 		if (minsize >= 0 && minsize <= indel.length) {
 		    //referenceSequence = referenceSequence.substr(0, referenceSequence.size() - (indel.length - minsize));
 		    //cerr << indel << endl;
-		    alignedLength -= indel.referenceLength() - minsize;
 		    indel.length = minsize;
 		    indel.sequence = indel.sequence.substr(0, minsize);
 		    //cerr << indel << endl;
@@ -551,7 +555,8 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 
     if (newIndels.empty()) {
 
-	newCigar.push_back(make_pair(alignedLength, "M"));
+	int remainingReadBp = querySequence.size() - softEnd.size();
+	newCigar.push_back(make_pair(remainingReadBp, "M"));
 
 	if (!softEnd.empty()) {
 	    newCigar.push_back(make_pair(softEnd.size(), "S"));
