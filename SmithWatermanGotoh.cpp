@@ -160,20 +160,30 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 			  entropyWindowSize));
     }
 
-    // normalize entropies in 0, 1
+    // normalize entropies
     /*
+    float qsum = 0;
     float qnorm = 0;
+    float qmax = 0;
+    for (vector<float>::iterator q = queryEntropies.begin(); q != queryEntropies.end(); ++q) {
+	qsum += *q;
+	if (*q > qmax) qmax = *q;
+    }
+    qnorm = qsum / queryEntropies.size();
     for (vector<float>::iterator q = queryEntropies.begin(); q != queryEntropies.end(); ++q)
-	qnorm == *q;
-    for (vector<float>::iterator q = queryEntropies.begin(); q != queryEntropies.end(); ++q)
-	*q /= qnorm;
+	*q = *q / qsum + qmax;
 
+    float rsum = 0;
     float rnorm = 0;
+    float rmax = 0;
+    for (vector<float>::iterator r = referenceEntropies.begin(); r != referenceEntropies.end(); ++r) {
+	rsum += *r;
+	if (*r > rmax) rmax = *r;
+    }
+    rnorm = rsum / referenceEntropies.size();
     for (vector<float>::iterator r = referenceEntropies.begin(); r != referenceEntropies.end(); ++r)
-	rnorm == *r;
-    for (vector<float>::iterator r = referenceEntropies.begin(); r != referenceEntropies.end(); ++r)
-	*r /= rnorm;
-	*/
+	*r = *r / rsum + rmax;
+    */
 
     //
     // construct
@@ -262,7 +272,7 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 	    if (mUseEntropyGapOpenPenalty) {
 		queryGapOpenScore = 
 		    mBestScores[j] - mGapOpenPenalty 
-		    * queryEntropies.at(j)
+		    * max(queryEntropies.at(j), referenceEntropies.at(i))
 		    * mEntropyGapOpenPenalty;
 	    }
 
@@ -311,7 +321,7 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 	    if (mUseEntropyGapOpenPenalty) {
 		referenceGapOpenScore = 
 		    mBestScores[j - 1] - mGapOpenPenalty 
-		    * referenceEntropies.at(i)
+		    * max(queryEntropies.at(j), referenceEntropies.at(i))
 		    * mEntropyGapOpenPenalty;
 	    }
 
