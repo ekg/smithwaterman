@@ -177,8 +177,11 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
             indel.sequence = indel.sequence.at(indel.sequence.size() - 1) + indel.sequence.substr(0, indel.sequence.size() - 1);
             indel.position -= 1;
             indel.readPosition -= 1;
+	    if (debug) cerr << indel << endl;
             steppos = indel.position - 1;
             readsteppos = indel.readPosition - 1;
+	    //if (debug && steppos && readsteppos) cerr << querySequence.at(readsteppos) << " ==? " << referenceSequence.at(steppos) << endl;
+	    //if (debug && steppos && readsteppos) cerr << indel.sequence.at((int) indel.sequence.size() - 1) << " ==? " << referenceSequence.at(steppos + indel.length) << endl;
         }
         // tracks previous indel, so we don't run into it with the next shift
         previous = id;
@@ -260,14 +263,20 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 			     ||
 			     (!previous->insertion && pos == indel.position - previous->length))
 			    ) {
-			    LEFTALIGN_DEBUG("right-merging tandem repeat: moving " << *previous << " right to " << pos << endl);
+			    if (debug) cerr << "right-merging tandem repeat: moving " << *previous << " right to " << pos << endl;
 			    previous->position = pos;
+			    previous->readPosition = readpos;
 			}
                     }
                 }
             }
             previous = id;
         }
+    }
+
+    if (debug) {
+	for (vector<IndelAllele>::iterator a = indels.begin(); a != indels.end(); ++a) cerr << *a << " ";
+	cerr << endl;
     }
 
 
@@ -346,7 +355,7 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 		// the new reference position == the flanking length size
 		// the positional offset of the reference sequence == the new position of the deletion - the flanking length
 
-		int diff = indel.length - minsize - softdiff  + deletedBpBefore;
+		int diff = indel.length - minsize - softdiff  + deletedBpBefore - insertedBpBefore;
 		//int querydiff = indel.length - minsize - softBegin.size() - insertedBpBefore + deletedBpBefore;
 		if (debug) cerr << "adjusting " << indel.length <<" " << minsize << "  " << softdiff << " " << diff << endl;
 		offset += diff;
