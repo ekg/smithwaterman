@@ -121,15 +121,14 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
             int steppos = indel.position - i;
             int readsteppos = indel.readPosition - i;
 
-#ifdef VERBOSE_DEBUG
             if (debug) {
                 if (steppos >= 0 && readsteppos >= 0) {
-                    cerr << referenceSequence.substr(steppos, indel.length) << endl;
-                    cerr << querySequence.substr(readsteppos, indel.length) << endl;
-                    cerr << indel.sequence << endl;
+                    cerr << "refseq flank " << referenceSequence.substr(steppos, indel.length) << endl;
+                    cerr << "qryseq flank " << querySequence.substr(readsteppos, indel.length) << endl;
+                    cerr << "indelseq     " << indel.sequence << endl;
                 }
             }
-#endif
+
             while (steppos >= 0 && readsteppos >= 0
                    && indel.sequence == referenceSequence.substr(steppos, indel.length)
                    && indel.sequence == querySequence.substr(readsteppos, indel.length)
@@ -190,7 +189,6 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 	cerr << endl;
     }
 
-/*
     if (debug) cerr << "bring together floating indels" << endl;
 
     // bring together floating indels
@@ -271,7 +269,6 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
             previous = id;
         }
     }
-*/
 
 
     if (debug) cerr << "bring in indels at ends of read" << endl;
@@ -312,7 +309,6 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 	    string flanking = querySequence.substr(0, flankingLength);
 	    if (debug) cerr << flanking << endl;
 
-	    // fuck...
 	    for (int i = indel.position + indel.length - flankingLength; i > 0; --i) {
 
 		if (debug) cerr << i << " " << referenceSequence.substr(i, flankingLength) << " " << flanking << endl;
@@ -567,6 +563,7 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 		    if (lastOverlapSeq == indelOverlapSeq) {
 			matchingInBetween = lastOverlapSeq.size();
 		    } else {
+			// TODO change to use string::find()
 			for (int i = dist; i > 0; --i) {
 			    if (debug) cerr << "lastoverlap: "
 					    << lastOverlapSeq.substr(lastOverlapSeq.size() - previousMatchingInBetween - i)
