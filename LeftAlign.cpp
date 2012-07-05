@@ -25,7 +25,7 @@
 //
 bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequence, int& offset, bool debug) {
 
-    debug = false;
+    debug = true;
 
     string referenceSequence = baseReferenceSequence.substr(offset);
 
@@ -91,6 +91,11 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
     // if no indels, return the alignment
     if (indels.empty()) { return false; }
 
+    if (debug) {
+	for (vector<IndelAllele>::iterator a = indels.begin(); a != indels.end(); ++a) cerr << *a << " ";
+	cerr << endl;
+    }
+
     // for each indel, from left to right
     //     while the indel sequence repeated to the left and we're not matched up with the left-previous indel
     //         move the indel left
@@ -142,6 +147,8 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
             } while (i <= indel.length && indel.length % i != 0);
         }
 
+
+
         // left shift indels with exchangeable flanking sequence
         //
         // for example:
@@ -178,6 +185,12 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
         previous = id;
     }
 
+    if (debug) {
+	for (vector<IndelAllele>::iterator a = indels.begin(); a != indels.end(); ++a) cerr << *a << " ";
+	cerr << endl;
+    }
+
+/*
     if (debug) cerr << "bring together floating indels" << endl;
 
     // bring together floating indels
@@ -258,6 +271,8 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
             previous = id;
         }
     }
+*/
+
 
     if (debug) cerr << "bring in indels at ends of read" << endl;
 
@@ -275,11 +290,6 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
     //
     // here we take the parsimonious explanation
 
-    if (debug) {
-	for (vector<IndelAllele>::iterator a = indels.begin(); a != indels.end(); ++a) cerr << *a << " ";
-	cerr << endl;
-    }
-
     if (!indels.empty()) {
 	// deal with the first indel
 	// the first deletion ... or the biggest deletion
@@ -290,18 +300,24 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 	    //if (!indel.insertion) { // only handle deletions like this for now
 	    //if (!indel.insertion && !(indels.size() > 1 && indel.readPosition == indels.at(1).readPosition)) { // only handle deletions like this for now
 	    int insertedBpBefore = 0;
-	    for (vector<IndelAllele>::iterator i = indels.begin(); i != biggestDel; ++i)
+	    int deletedBpBefore = 0;
+	    for (vector<IndelAllele>::iterator i = indels.begin(); i != biggestDel; ++i) {
 		if (i->insertion) insertedBpBefore += i->length;
+		else deletedBpBefore += i->length;
+	    }
 	    IndelAllele& indel = *biggestDel;
 	    int minsize = indel.length + 1;
 	    int flankingLength = indel.readPosition;
 	    if (debug) cerr << indel << endl;
 	    string flanking = querySequence.substr(0, flankingLength);
 	    if (debug) cerr << flanking << endl;
-	    for (int i = indel.length; i - insertedBpBefore > 0; --i) {
-		if (debug) cerr << i << " " << referenceSequence.substr(i - insertedBpBefore, flankingLength) << " " << flanking << endl;
-		if (referenceSequence.substr(i - insertedBpBefore, flankingLength) == flanking) {
-		    minsize = indel.length - i - softBegin.size();
+
+	    // fuck...
+	    for (int i = indel.position + indel.length - flankingLength; i > 0; --i) {
+
+		if (debug) cerr << i << " " << referenceSequence.substr(i, flankingLength) << " " << flanking << endl;
+		if (referenceSequence.substr(i, flankingLength) == flanking) {
+		    minsize = indel.length + insertedBpBefore - i - softBegin.size() + flankingLength;
 		    break;
 		}
 	    }
@@ -319,7 +335,7 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 		}
 		*/
 
-		int diff = indel.length - minsize - softBegin.size() - insertedBpBefore;;
+		int diff = indel.length - minsize - softBegin.size() - insertedBpBefore + deletedBpBefore;
 		if (debug) cerr << "adjusting " << indel.length <<" " << minsize << "  " << softBegin.size() << " " << diff  << endl;
 		offset += diff;
 		cerr << diff << endl;
@@ -450,25 +466,29 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 		    if (debug) cerr << "merging by overlap " << last << " " << indel << endl;
 		    // see if we can slide the sequence in between these two indels together
 		    string lastOverlapSeq;
+		    string indelOverlapSeq;
+
 		    if (last.insertion) {
-			lastOverlapSeq = last.sequence
+			lastOverlapSeq =
+			    last.sequence
 			    + querySequence.substr(last.readPosition + last.readLength(),
 						   indel.readPosition - (last.readPosition + last.readLength()));
-		    } else {
-			lastOverlapSeq = last.sequence
-			    + referenceSequence.substr(last.position + last.referenceLength(),
-						       indel.position - (last.position + last.referenceLength()));
-		    }
-		    string indelOverlapSeq;
-		    if (indel.insertion) {
-			indelOverlapSeq =
-			    querySequence.substr(last.readPosition + last.readLength(),
-						 indel.readPosition - last.readPosition + last.readLength())
-			    + indel.sequence;
-		    } else {
 			indelOverlapSeq =
 			    referenceSequence.substr(last.position + last.referenceLength(),
-						     indel.position - last.position + last.referenceLength())
+						     indel.position - (last.position + last.referenceLength()))
+			    + indel.sequence;
+			cerr << indel.position << endl;
+			cerr << last .position << endl;
+			cerr << last.referenceLength() << endl;
+			cerr << indel.position - (last.position + last.referenceLength()) << endl;
+		    } else {
+			lastOverlapSeq =
+			    last.sequence
+			    + referenceSequence.substr(last.position + last.referenceLength(),
+						       indel.position - (last.position + last.referenceLength()));
+			indelOverlapSeq =
+			    querySequence.substr(last.readPosition + last.readLength(),
+						 indel.readPosition - (last.readPosition + last.readLength()))
 			    + indel.sequence;
 		    }
 
