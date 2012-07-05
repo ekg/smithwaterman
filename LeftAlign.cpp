@@ -481,6 +481,8 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 		if (indel.insertion == last.insertion) {
 		    last.length += indel.length;
 		    last.sequence += indel.sequence;
+		    indel.length = 0;
+		    indel.sequence.clear();
 		    id = idn;
 		} else if (last.length && indel.length) { // if the end of the previous == the start of the current, cut it off of both the ins and the del
 		    if (debug) cerr << "Merging " << last << " " << indel << endl;
