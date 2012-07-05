@@ -25,7 +25,7 @@
 //
 bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequence, int& offset, bool debug) {
 
-    debug = true;
+    debug = false;
 
     string referenceSequence = baseReferenceSequence.substr(offset);
 
