@@ -27,6 +27,8 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 
     debug = false;
 
+    int oldoffset = offset;
+
     string referenceSequence = baseReferenceSequence.substr(offset);
 
     int arsOffset = 0; // pointer to insertion point in aligned reference sequence
@@ -317,7 +319,8 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 
 		if (debug) cerr << i << " " << referenceSequence.substr(i, flankingLength) << " " << flanking << endl;
 		if (referenceSequence.substr(i, flankingLength) == flanking) {
-		    minsize = indel.length + insertedBpBefore - i - softBegin.size() + flankingLength;
+		    //minsize = indel.length + insertedBpBefore - i - softBegin.size() + flankingLength;
+		    minsize = (indel.position + indel.length) - (i + flankingLength);
 		    break;
 		}
 	    }
@@ -335,13 +338,6 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 		}
 		*/
 
-		int diff = indel.length - minsize - softBegin.size() - insertedBpBefore + deletedBpBefore;
-		if (debug) cerr << "adjusting " << indel.length <<" " << minsize << "  " << softBegin.size() << " " << diff  << endl;
-		offset += diff;
-		cerr << diff << endl;
-		///
-		indel.length = minsize;
-		indel.sequence = indel.sequence.substr(indel.sequence.size() - minsize);
 		int softdiff = softBegin.size();
 		if (!softBegin.empty()) { // remove soft clips if we can
 		    if (flankingLength < softBegin.size()) {
@@ -351,10 +347,24 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 			softBegin.clear();
 		    }
 		}
-		indel.position += softdiff;
+
+		// the new read position == the current read position
+		// the new reference position == the flanking length size
+		// the positional offset of the reference sequence == the new position of the deletion - the flanking length
+
+		int diff = indel.length - minsize - softdiff  + deletedBpBefore;
+		//int querydiff = indel.length - minsize - softBegin.size() - insertedBpBefore + deletedBpBefore;
+		if (debug) cerr << "adjusting " << indel.length <<" " << minsize << "  " << softdiff << " " << diff << endl;
+		offset += diff;
+		///
+		indel.length = minsize;
+		indel.sequence = indel.sequence.substr(indel.sequence.size() - minsize);
+		indel.position = flankingLength;
+		indel.readPosition = indel.position; // if we have removed all the sequence before, this should be ==
+		referenceSequence = referenceSequence.substr(diff);
+
 		for (vector<IndelAllele>::iterator i = indels.begin(); i != indels.end(); ++i) {
 		    if (i < biggestDel) {
-			cerr << *i << " removing " << endl;
 			i->length = 0; // remove
 		    } else if (i > biggestDel) {
 			i->position -= diff;
@@ -428,6 +438,20 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 	}
     }
 
+    for (vector<IndelAllele>::iterator i = newIndels.begin(); i != newIndels.end(); ++i) {
+	if (i->insertion) {
+	    if (querySequence.substr(i->readPosition, i->readLength()) != i->sequence) {
+		cerr << "failure: " << *i << " should be " << querySequence.substr(i->readPosition, i->readLength()) << endl;
+		exit(1);
+	    }
+	} else {
+	    if (referenceSequence.substr(i->position, i->length) != i->sequence) {
+		cerr << "failure: " << *i << " should be " << referenceSequence.substr(i->position, i->length) << endl;
+		exit(1);
+	    }
+	}
+    }
+
     if (indels.size() > 1 && !newIndels.empty()) {
         for (vector<IndelAllele>::iterator id = (indels.begin() + 1 + numEmptyIndels); id != indels.end(); ++id) {
             IndelAllele& indel = *id;
@@ -477,10 +501,6 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 			    referenceSequence.substr(last.position + last.referenceLength(),
 						     indel.position - (last.position + last.referenceLength()))
 			    + indel.sequence;
-			cerr << indel.position << endl;
-			cerr << last .position << endl;
-			cerr << last.referenceLength() << endl;
-			cerr << indel.position - (last.position + last.referenceLength()) << endl;
 		    } else {
 			lastOverlapSeq =
 			    last.sequence
