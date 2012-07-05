@@ -27,8 +27,6 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 
     debug = false;
 
-    int oldoffset = offset;
-
     string referenceSequence = baseReferenceSequence.substr(offset);
 
     int arsOffset = 0; // pointer to insertion point in aligned reference sequence
@@ -391,7 +389,7 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 		if (debug) cerr << "minsize " << minsize << endl;
 		if (minsize >= 0 && minsize <= indel.length) {
 		    //referenceSequence = referenceSequence.substr(0, referenceSequence.size() - (indel.length - minsize));
-		    //cerr << indel << endl;
+		    if (debug) cerr << "adjusting " << indel << endl;
 		    indel.length = minsize;
 		    indel.sequence = indel.sequence.substr(0, minsize);
 		    //cerr << indel << endl;
@@ -422,23 +420,23 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
     // if soft clipping can be reduced by adjusting the tailing indels in the read, do it
     // TODO
 
-    vector<IndelAllele> newIndels;
+    /*
     int numEmptyIndels = 0;
 
     if (!indels.empty()) {
 	vector<IndelAllele>::iterator a = indels.begin();
-	while (newIndels.empty() && a != indels.end()) {
-	    if (debug) cerr << *a << endl;
-	    if (a->length > 0 && a->position >= 0) {
-		newIndels.push_back(*a);
-	    } else {
+	while (a != indels.end()) {
+	    if (debug) cerr << "parsing " << *a << endl;
+	    if (!(a->length > 0 && a->position >= 0)) {
 		++numEmptyIndels;
 	    }
 	    ++a;
 	}
     }
+    */
 
-    for (vector<IndelAllele>::iterator i = newIndels.begin(); i != newIndels.end(); ++i) {
+    for (vector<IndelAllele>::iterator i = indels.begin(); i != indels.end(); ++i) {
+	if (i->length == 0) continue;
 	if (i->insertion) {
 	    if (querySequence.substr(i->readPosition, i->readLength()) != i->sequence) {
 		cerr << "failure: " << *i << " should be " << querySequence.substr(i->readPosition, i->readLength()) << endl;
@@ -456,16 +454,34 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 	}
     }
 
-    if (indels.size() > 1 && !newIndels.empty()) {
-        for (vector<IndelAllele>::iterator id = (indels.begin() + 1 + numEmptyIndels); id != indels.end(); ++id) {
-            IndelAllele& indel = *id;
-	    IndelAllele& last = newIndels.back();
+    if (indels.size() > 1) {
+        vector<IndelAllele>::iterator id = indels.begin();
+	while ((id + 1) != indels.end()) {
+	    if (debug) {
+		cerr << "indels: ";
+		for (vector<IndelAllele>::iterator a = indels.begin(); a != indels.end(); ++a) cerr << *a << " ";
+		cerr << endl;
+		//for (vector<IndelAllele>::iterator a = newIndels.begin(); a != newIndels.end(); ++a) cerr << *a << " ";
+		//cerr << endl;
+	    }
+
+	    // get the indels to try to merge
+	    while (id->length == 0 && (id + 1) != indels.end()) ++id;
+	    vector<IndelAllele>::iterator idn = (id + 1);
+	    while (idn != indels.end() && idn->length == 0) ++idn;
+	    if (idn == indels.end()) break;
+
+            IndelAllele& indel = *idn;
+	    IndelAllele& last = *id;
+	    if (debug) cerr << "trying " << last << " against " << indel << endl;
+
 	    int lastend = last.insertion ? last.position : (last.position + last.length);
 	    if (indel.position == lastend) {
 		if (debug) cerr << "indel.position " << indel.position << " lastend " << lastend << endl;
 		if (indel.insertion == last.insertion) {
 		    last.length += indel.length;
 		    last.sequence += indel.sequence;
+		    id = idn;
 		} else if (last.length && indel.length) { // if the end of the previous == the start of the current, cut it off of both the ins and the del
 		    if (debug) cerr << "Merging " << last << " " << indel << endl;
 		    int matchsize = 1;
@@ -486,7 +502,7 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 		    else indel.position += biggestmatchsize;
 
 		    if (indel.length > 0) {
-			newIndels.push_back(indel);
+			id = idn;
 		    }
 		}
 	    } else {
@@ -573,12 +589,19 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 		    }// else if (matchingInBetween == 0 || matchingInBetween == indel.position - last.position) {
 			//if (!newIndels.empty()) newIndels.pop_back();
 		    //} //else { newIndels.push_back(indel); }
-		    newIndels.push_back(indel);
+		    id = idn;
+		    //newIndels.push_back(indel);
 		} else {
-		    newIndels.push_back(indel);
+		    id = idn;
+		    //newIndels.push_back(indel);
 		}
 	    }
 	}
+    }
+
+    vector<IndelAllele> newIndels;
+    for (vector<IndelAllele>::iterator i = indels.begin(); i != indels.end(); ++i) {
+	if (i->length > 0) newIndels.push_back(*i);
     }
 
     // for each indel
