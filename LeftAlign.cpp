@@ -362,7 +362,6 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 
 		for (vector<IndelAllele>::iterator i = indels.begin(); i != indels.end(); ++i) {
 		    if (i < del) {
-			cerr <<  "removing " << *i << endl;
 			i->length = 0; // remove
 		    } else if (i > del) {
 			i->position -= diff;
