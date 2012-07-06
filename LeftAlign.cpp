@@ -25,7 +25,7 @@
 //
 bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequence, int& offset, bool debug) {
 
-    debug = false;
+    debug = true;
 
     string referenceSequence = baseReferenceSequence.substr(offset);
 
@@ -266,6 +266,7 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 			    if (debug) cerr << "right-merging tandem repeat: moving " << *previous << " right to " << pos << endl;
 			    previous->position = pos;
 			    previous->readPosition = readpos;
+			    previous->sequence = seq;
 			}
                     }
                 }
