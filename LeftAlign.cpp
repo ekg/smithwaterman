@@ -634,7 +634,7 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 
     if (newIndels.empty()) {
 
-	int remainingReadBp = querySequence.size() - softEnd.size();
+	int remainingReadBp = querySequence.size() - softEnd.size() - softBegin.size();
 	newCigar.push_back(make_pair(remainingReadBp, "M"));
 
 	if (!softEnd.empty()) {
