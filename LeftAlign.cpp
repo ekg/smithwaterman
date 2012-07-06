@@ -300,46 +300,40 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 	// deal with the first indel
 	// the first deletion ... or the biggest deletion
 	vector<IndelAllele>::iterator a = indels.begin();
-	vector<IndelAllele>::iterator biggestDel = indels.begin();
-	for (; a != indels.end(); ++a) if (!a->insertion && a->length > biggestDel->length) biggestDel = a;
-	if (!biggestDel->insertion) {
+	vector<IndelAllele>::iterator del = indels.begin();
+	for (; a != indels.end(); ++a) {
+	    //if (!a->insertion && a->length > biggestDel->length) biggestDel = a;
+	    if (!a->insertion && a->length) del = a;
+	if (!del->insertion) {
 	    //if (!indel.insertion) { // only handle deletions like this for now
 	    //if (!indel.insertion && !(indels.size() > 1 && indel.readPosition == indels.at(1).readPosition)) { // only handle deletions like this for now
 	    int insertedBpBefore = 0;
 	    int deletedBpBefore = 0;
-	    for (vector<IndelAllele>::iterator i = indels.begin(); i != biggestDel; ++i) {
+	    for (vector<IndelAllele>::iterator i = indels.begin(); i != del; ++i) {
 		if (i->insertion) insertedBpBefore += i->length;
 		else deletedBpBefore += i->length;
 	    }
-	    IndelAllele& indel = *biggestDel;
-	    int minsize = indel.length + 1;
+	    IndelAllele& indel = *del;
+	    int minsize = indel.length;
 	    int flankingLength = indel.readPosition;
 	    if (debug) cerr << indel << endl;
 	    string flanking = querySequence.substr(0, flankingLength);
 	    if (debug) cerr << flanking << endl;
 
-	    for (int i = indel.position + indel.length - flankingLength; i > 0; --i) {
-
-		if (debug) cerr << i << " " << referenceSequence.substr(i, flankingLength) << " " << flanking << endl;
-		if (referenceSequence.substr(i, flankingLength) == flanking) {
-		    //minsize = indel.length + insertedBpBefore - i - softBegin.size() + flankingLength;
-		    minsize = (indel.position + indel.length) - (i + flankingLength);
-		    break;
+	    size_t p = referenceSequence.rfind(flanking);
+	    if (p == string::npos) {
+		if (debug) cerr << "flanking not found" << endl;
+	    } else {
+		if (debug) {
+		    cerr << "flanking is at " << p << endl;
+		    cerr << "minsize would be " << (indel.position + indel.length) - ((int) p + flankingLength) << endl;
 		}
+		minsize = (indel.position + indel.length) - ((int) p + flankingLength);
 	    }
+
 	    if (debug) cerr << minsize << endl;
 
 	    if (minsize >= 0 && minsize < indel.length) {
-		/*
-		int removedInsBp = 0;
-		int removedDelBp = 0;
-		for (vector<IndelAllele>::iterator i = indels.begin(); i != indels.end(); ++i) {
-		    if (i->position <= biggestDel->position && i != biggestDel) {
-			if (!i->insertion) { removedDelBp += i->length; }
-			else { removedInsBp += i->length; }
-		    }
-		}
-		*/
 
 		int softdiff = softBegin.size();
 		if (!softBegin.empty()) { // remove soft clips if we can
@@ -367,9 +361,10 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 		referenceSequence = referenceSequence.substr(diff);
 
 		for (vector<IndelAllele>::iterator i = indels.begin(); i != indels.end(); ++i) {
-		    if (i < biggestDel) {
+		    if (i < del) {
+			cerr <<  "removing " << *i << endl;
 			i->length = 0; // remove
-		    } else if (i > biggestDel) {
+		    } else if (i > del) {
 			i->position -= diff;
 		    }
 		}
@@ -382,15 +377,19 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 		int flankingLength = querySequence.size() - indel.readPosition + indel.readLength();
 		string flanking = querySequence.substr(indel.readPosition + indel.readLength(), flankingLength);
 		int indelRefEnd = indel.position + indel.referenceLength();
-		for (int i = indel.length; i > 0; --i) {
-		    if (indelRefEnd - i + flankingLength > referenceSequence.size())
-			continue;
-		    if (debug) cerr << i << " " << referenceSequence.substr(indelRefEnd - i, flankingLength) << " " << flanking << endl;
-		    if (referenceSequence.substr(indelRefEnd - i, flankingLength) == flanking) {
-			minsize = indel.length - i;
-			break;
+
+		size_t p = referenceSequence.find(flanking);
+		if (p == string::npos) {
+		    if (debug)
+			cerr << "flanking not found" << endl;
+		} else {
+		    if (debug) {
+			cerr << "flanking is at " << p << endl;
+			cerr << "minsize would be " << (int) p - indel.position << endl;
 		    }
+		    minsize = (int) p - indel.position;
 		}
+
 		if (debug) cerr << "minsize " << minsize << endl;
 		if (minsize >= 0 && minsize <= indel.length) {
 		    //referenceSequence = referenceSequence.substr(0, referenceSequence.size() - (indel.length - minsize));
@@ -406,12 +405,13 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 			}
 		    }
 		    for (vector<IndelAllele>::iterator i = indels.begin(); i != indels.end(); ++i) {
-			if (i > biggestDel) {
+			if (i > del) {
 			    i->length = 0; // remove
 			}
 		    }
 		}
 	    }
+	}
 	}
     }
 
@@ -493,6 +493,7 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 		    if (debug) cerr << "Merging " << last << " " << indel << endl;
 		    int matchsize = 1;
 		    int biggestmatchsize = 0;
+
 		    while (matchsize <= last.sequence.size() && matchsize <= indel.sequence.size()) {
 			if (last.sequence.substr(last.sequence.size() - matchsize) == indel.sequence.substr(0, matchsize)) {
 			    biggestmatchsize = matchsize;
@@ -609,7 +610,8 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 
     vector<IndelAllele> newIndels;
     for (vector<IndelAllele>::iterator i = indels.begin(); i != indels.end(); ++i) {
-	if (i->length > 0) newIndels.push_back(*i);
+	if (!i->insertion && i->position == 0) { offset += i->length;
+	} else if (i->length > 0) newIndels.push_back(*i); // remove dels at front
     }
 
     // for each indel
@@ -713,6 +715,8 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 	if (newCigar.back().second == "M") newCigar.back().first += remainingReadBp;
 	else newCigar.push_back(make_pair(remainingReadBp, "M"));
     }
+
+    if (newCigar.back().second == "D") newCigar.pop_back(); // remove trailing deletions
 
     if (!softEnd.empty()) {
         newCigar.push_back(make_pair(softEnd.size(), "S"));
