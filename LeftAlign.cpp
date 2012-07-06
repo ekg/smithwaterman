@@ -320,7 +320,7 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 	    string flanking = querySequence.substr(0, flankingLength);
 	    if (debug) cerr << flanking << endl;
 
-	    size_t p = referenceSequence.rfind(flanking);
+	    size_t p = referenceSequence.substr(0, indel.position + indel.length).rfind(flanking);
 	    if (p == string::npos) {
 		if (debug) cerr << "flanking not found" << endl;
 	    } else {
@@ -377,7 +377,7 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 		string flanking = querySequence.substr(indel.readPosition + indel.readLength(), flankingLength);
 		int indelRefEnd = indel.position + indel.referenceLength();
 
-		size_t p = referenceSequence.find(flanking);
+		size_t p = referenceSequence.find(flanking, indel.position);
 		if (p == string::npos) {
 		    if (debug)
 			cerr << "flanking not found" << endl;
@@ -589,10 +589,13 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 		    if (matchingInBetween > 0 && matchingInBetween > previousMatchingInBetween) {
 			if (debug) cerr << "matching " << matchingInBetween  << "bp between " << last << " " << indel
 				        << " was matching " << previousMatchingInBetween << endl;
-			last.length -= matchingInBetween - previousMatchingInBetween;
+			int diff = matchingInBetween - previousMatchingInBetween;
+			last.length -= diff;
 			last.sequence = last.sequence.substr(0, last.length);
-			indel.length -= matchingInBetween - previousMatchingInBetween;
-			indel.sequence = indel.sequence.substr(matchingInBetween - previousMatchingInBetween);
+			indel.length -= diff;
+			indel.sequence = indel.sequence.substr(diff);
+			if (!indel.insertion) indel.position += diff;
+			else indel.readPosition += diff;
 			if (debug) cerr << last << " " << indel << endl;
 		    }// else if (matchingInBetween == 0 || matchingInBetween == indel.position - last.position) {
 			//if (!newIndels.empty()) newIndels.pop_back();
