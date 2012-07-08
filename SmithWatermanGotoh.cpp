@@ -258,7 +258,7 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 	    // fill the matrices
 	    totalSimilarityScore = bestScoreDiagonal + similarityScore;
 	    
-	    //cout << "i: " << i << ", j: " << j << ", totalSimilarityScore: " << totalSimilarityScore << endl;
+	    //cerr << "i: " << i << ", j: " << j << ", totalSimilarityScore: " << totalSimilarityScore << endl;
 
 	    queryGapExtendScore = mQueryGapScores[j] - mGapExtendPenalty;
 	    queryGapOpenScore   = mBestScores[j] - mGapOpenPenalty;
@@ -377,7 +377,6 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 	    }
 	}
     }
-	
 
     //
     // traceback
@@ -398,6 +397,7 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
     bool keepProcessing = true;
 
     while(keepProcessing) {
+	//cerr << ci << " " << cj << " " << ck << "  ... " << gappedAnchorLen << " " << gappedQueryLen <<  endl;
 
 	// diagonal (445364713) > stop (238960195) > up (214378647) > left (166504495)
 	switch(mPointers[ck + cj]) {
@@ -420,6 +420,10 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 
 	case Directions_UP:
 	    for(unsigned int l = 0, len = mSizesOfVerticalGaps[ck + cj]; l < len; l++) {
+		if (ci <= 0) {
+		    keepProcessing = false;
+		    break;
+		}
 		mReversedAnchor[gappedAnchorLen++] = s1[--ci];
 		mReversedQuery[gappedQueryLen++]   = GAP;
 		ck -= queryLen;
@@ -429,6 +433,10 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 
 	case Directions_LEFT:
 	    for(unsigned int l = 0, len = mSizesOfHorizontalGaps[ck + cj]; l < len; l++) {
+		if (cj <= 0) {
+		    keepProcessing = false;
+		    break;
+		}
 		mReversedAnchor[gappedAnchorLen++] = GAP;
 		mReversedQuery[gappedQueryLen++]   = s2[--cj];
 		numMismatches++;
@@ -481,7 +489,7 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
     bool dashRegion = false;
     ostringstream oCigar (ostringstream::out);
     int insertedBases = 0;
-	
+
     if ( cj != 0 ) {
 	if ( cj > 0 ) {
 	    oCigar << cj << 'S';
