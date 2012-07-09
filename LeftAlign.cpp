@@ -674,8 +674,8 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 	if (debug) cerr << indel << " " << *last << endl;
 	LEFTALIGN_DEBUG(indel << ",");
 	if ((id + 1) == newIndels.end()
-	    && (indel.insertion && indel.position == referenceSequence.size() - 1
-		|| (!indel.insertion && indel.position + indel.length == referenceSequence.size() - 1))
+	    && (indel.insertion && indel.position == referenceSequence.size()
+		|| (!indel.insertion && indel.position + indel.length == referenceSequence.size()))
 	    ) {
 	    if (indel.insertion) {
 		if (!newCigar.empty() && newCigar.back().second == "S") {
@@ -722,7 +722,8 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
     if (newCigar.back().second == "D") newCigar.pop_back(); // remove trailing deletions
 
     if (!softEnd.empty()) {
-        newCigar.push_back(make_pair(softEnd.size(), "S"));
+	if (newCigar.back().second == "S") newCigar.back().first += softEnd.size();
+	else newCigar.push_back(make_pair(softEnd.size(), "S"));
     }
 
     LEFTALIGN_DEBUG(endl);
