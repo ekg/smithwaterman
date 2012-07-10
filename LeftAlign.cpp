@@ -447,14 +447,14 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 		cerr << "failure: " << *i << " should be " << querySequence.substr(i->readPosition, i->readLength()) << endl;
 		cerr << baseReferenceSequence << endl;
 		cerr << querySequence << endl;
-		exit(1);
+		throw 1;
 	    }
 	} else {
 	    if (referenceSequence.substr(i->position, i->length) != i->sequence) {
 		cerr << "failure: " << *i << " should be " << referenceSequence.substr(i->position, i->length) << endl;
 		cerr << baseReferenceSequence << endl;
 		cerr << querySequence << endl;
-		exit(1);
+		throw 1;
 	    }
 	}
     }
