@@ -542,10 +542,14 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 
     if (mUseEntropyGapOpenPenalty || mUseRepeatGapExtensionPenalty) {
 	int offset = 0;
+	string oldCigar;
 	try {
+	    oldCigar = cigarAl;
 	    stablyLeftAlign(s2, cigarAl, s1.substr(referenceAl, alLength - insertedBases), offset);
 	} catch (...) {
 	    cerr << "an exception occurred when left-aligning " << s1 << " " << s2 << endl;
+	    cigarAl = oldCigar; // undo the failed left-realignment attempt
+	    offset = 0;
 	}
 	referenceAl += offset;
     }
