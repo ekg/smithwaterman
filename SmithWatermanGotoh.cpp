@@ -545,7 +545,7 @@ void CSmithWatermanGotoh::Align(unsigned int& referenceAl, string& cigarAl, cons
 	try {
 	    stablyLeftAlign(s2, cigarAl, s1.substr(referenceAl, alLength - insertedBases), offset);
 	} catch (...) {
-	    cerr << "an exception occurred when left-aligning " << s1.substr(referenceAl, alLength - insertedBases) << " " << s2 << endl;
+	    cerr << "an exception occurred when left-aligning " << s1 << " " << s2 << endl;
 	}
 	referenceAl += offset;
     }
