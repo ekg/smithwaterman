@@ -228,7 +228,6 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 			previous->readPosition = !indel.insertion ? indel.readPosition : indel.readPosition - previous->readLength(); // should this be readLength?
                     }
                 }
-		/*
                 else {
                     int pos = previous->position;
 		    int readpos = previous->readPosition;
@@ -271,7 +270,6 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 			}
                     }
                 }
-		*/
             }
             previous = id;
         }
