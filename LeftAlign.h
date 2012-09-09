@@ -24,9 +24,9 @@ bool leftAlign(string& alternateQuery, string& cigar, string& referenceSequence,
 bool stablyLeftAlign(string alternateQuery, string& cigar, string referenceSequence, int& offset, int maxiterations = 20, bool debug = false);
 int countMismatches(string& alternateQuery, string& cigar, string& referenceSequence);
 
-string mergeCigar(const string& c1, const string& c2);
-vector<pair<int, string> > splitCigar(const string& cigarStr);
-string joinCigar(const vector<pair<int, string> >& cigar);
+string mergeCIGAR(const string& c1, const string& c2);
+vector<pair<int, string> > splitCIGAR(const string& cigarStr);
+string joinCIGAR(const vector<pair<int, string> >& cigar);
 
 
 #endif

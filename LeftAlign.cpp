@@ -46,7 +46,7 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 
     string cigarbefore = cigar;
 
-    vector<pair<int, string> > cigarData = splitCigar(cigar);
+    vector<pair<int, string> > cigarData = splitCIGAR(cigar);
     for (vector<pair<int, string> >::const_iterator c = cigarData.begin();
         c != cigarData.end(); ++c) {
         unsigned int l = c->first;
@@ -644,7 +644,7 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 	    newCigar.push_back(make_pair(softEnd.size(), "S"));
 	}
 
-	cigar = joinCigar(newCigar);
+	cigar = joinCIGAR(newCigar);
 
 	// check if we're realigned
 	if (cigar == cigarbefore) {
@@ -730,7 +730,7 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 
     LEFTALIGN_DEBUG(endl);
 
-    cigar = joinCigar(newCigar);
+    cigar = joinCIGAR(newCigar);
 
     LEFTALIGN_DEBUG(cigar << endl);
 
@@ -748,7 +748,7 @@ int countMismatches(string& querySequence, string& cigar, string referenceSequen
     int mismatches = 0;
     int sp = 0;
     int rp = 0;
-    vector<pair<int, string> > cigarData = splitCigar(cigar);
+    vector<pair<int, string> > cigarData = splitCIGAR(cigar);
     for (vector<pair<int, string> >::const_iterator c = cigarData.begin();
         c != cigarData.end(); ++c) {
         unsigned int l = c->first;
@@ -801,9 +801,9 @@ bool stablyLeftAlign(string querySequence, string& cigar, string referenceSequen
     }
 }
 
-string mergeCigar(const string& c1, const string& c2) {
-    vector<pair<int, string> > cigar1 = splitCigar(c1);
-    vector<pair<int, string> > cigar2 = splitCigar(c2);
+string mergeCIGAR(const string& c1, const string& c2) {
+    vector<pair<int, string> > cigar1 = splitCIGAR(c1);
+    vector<pair<int, string> > cigar2 = splitCIGAR(c2);
     // check if the middle elements are the same
     if (cigar1.back().second == cigar2.front().second) {
         cigar1.back().first += cigar2.front().first;
@@ -812,10 +812,10 @@ string mergeCigar(const string& c1, const string& c2) {
     for (vector<pair<int, string> >::iterator c = cigar2.begin(); c != cigar2.end(); ++c) {
         cigar1.push_back(*c);
     }
-    return joinCigar(cigar1);
+    return joinCIGAR(cigar1);
 }
 
-vector<pair<int, string> > splitCigar(const string& cigarStr) {
+vector<pair<int, string> > splitCIGAR(const string& cigarStr) {
     vector<pair<int, string> > cigar;
     string number;
     string type;
@@ -842,7 +842,7 @@ vector<pair<int, string> > splitCigar(const string& cigarStr) {
     return cigar;
 }
 
-string joinCigar(const vector<pair<int, string> >& cigar) {
+string joinCIGAR(const vector<pair<int, string> >& cigar) {
     string cigarStr;
     for (vector<pair<int, string> >::const_iterator c = cigar.begin(); c != cigar.end(); ++c) {
         if (c->first) {
