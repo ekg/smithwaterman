@@ -144,12 +144,14 @@ int main (int argc, char** argv) {
         exit(1);
     }
 
-	// initialize
+    // initialize
 	
-	unsigned int referencePos;
-	string cigar;
+    unsigned int referencePos;
+    string cigar;
 
-	// create a new Smith-Waterman alignment object
+    float bestScore = 0;
+
+    // create a new Smith-Waterman alignment object
     if (bandwidth > 0) {
         pair< pair<unsigned int, unsigned int>, pair<unsigned int, unsigned int> > hr;
         hr.first.first   = 2;
@@ -165,9 +167,10 @@ int main (int argc, char** argv) {
 	if (entropyGapOpenPenalty > 0)
 	    sw.EnableEntropyGapPenalty(entropyGapOpenPenalty);
         sw.Align(referencePos, cigar, reference, query);
+	bestScore = sw.BestScore;
     }
-
-    printf("%s %3u\n", cigar.c_str(), referencePos);
+ 
+    printf("%s %3u %f\n", cigar.c_str(), referencePos, bestScore);
 
     // optionally print out the alignment
     if (print_alignment) {
