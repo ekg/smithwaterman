@@ -1,3 +1,6 @@
-.*.swp
-*.o
+Makefile
+CMakeCache.txt
+cmake_install.cmake
+CMakeFiles
+libsmithwaterman.a
 smithwaterman
