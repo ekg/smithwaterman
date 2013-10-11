@@ -11,6 +11,45 @@
 
 using namespace std;
 
+/* Returns the Reverse Complement of a DNA Sequence, from the alphabet {A,T,C,G,N} */
+string reverseComplement(string read) {
+	
+	// Declare the (empty) reverse complement read as a string
+	string rc_read;	
+	
+	// Reverse Read
+	rc_read.assign(read.rbegin(), read.rend());
+	
+	// Complement.  Note that not IUPAC compliant. Uses the alphabet {A,T,C,G,N}
+	string::iterator t;
+	for (t = rc_read.begin(); t != rc_read.end(); ++t) {
+		switch (*t) {
+			case 'A':
+				*t = 'T';
+				break;
+			case 'T':
+				*t = 'A';
+				break;
+			case 'C':
+				*t = 'G';
+				break;
+			case 'G':
+				*t = 'C';
+				break;
+			case 'N':
+				*t = 'N';
+				break;
+			default:
+				cout << "Unknown Nucleotide!";
+				break;
+		}
+	}
+	
+	// Return the Read  (faster if done through pointers?)
+	return rc_read;
+}
+
+
 void printSummary(void) {
     cerr << "usage: smithwaterman [options] <reference sequence> <query sequence>" << endl
          << endl
@@ -18,11 +57,12 @@ void printSummary(void) {
          << "    -m, --match-score         the match score (default 10.0)" << endl
          << "    -n, --mismatch-score      the mismatch score (default -9.0)" << endl
          << "    -g, --gap-open-penalty    the gap open penalty (default 15.0)" << endl
-	 << "    -z, --entropy-gap-open-penalty  enable entropy scaling of the gap open penalty" << endl
+         << "    -z, --entropy-gap-open-penalty  enable entropy scaling of the gap open penalty" << endl
          << "    -e, --gap-extend-penalty  the gap extend penalty (default 6.66)" << endl
-	 << "    -r, --repeat-gap-extend-penalty  use repeat information when generating gap extension penalties" << endl
+         << "    -r, --repeat-gap-extend-penalty  use repeat information when generating gap extension penalties" << endl
          << "    -b, --bandwidth           bandwidth to use (default 0, or non-banded algorithm)" << endl
          << "    -p, --print-alignment     print out the alignment" << endl
+         << "    -R, --reverse-complement  report the reverse-complement alignment if it scores better" << endl
          << endl
          << "When called with literal reference and query sequences, smithwaterman" << endl
          << "prints the cigar match positional string and the match position for the" << endl
@@ -48,89 +88,95 @@ int main (int argc, char** argv) {
     float repeatGapExtendPenalty = 1.0f;
     
     bool print_alignment = false;
+    bool tryReverseComplement = false;
 
     while (true) {
         static struct option long_options[] =
-        {
-            {"help", no_argument, 0, 'h'},
-            {"match-score",  required_argument, 0, 'm'},
-            {"mismatch-score",  required_argument, 0, 'n'},
-            {"gap-open-penalty",  required_argument, 0, 'g'},
-            {"entropy-gap-open-penalty",  required_argument, 0, 'z'},
-            {"gap-extend-penalty",  required_argument, 0, 'e'},
-            {"repeat-gap-extend-penalty",  required_argument, 0, 'r'},
-            {"print-alignment",  required_argument, 0, 'p'},
-            {"bandwidth", required_argument, 0, 'b'},
-            {0, 0, 0, 0}
-        };
+            {
+                {"help", no_argument, 0, 'h'},
+                {"match-score",  required_argument, 0, 'm'},
+                {"mismatch-score",  required_argument, 0, 'n'},
+                {"gap-open-penalty",  required_argument, 0, 'g'},
+                {"entropy-gap-open-penalty",  required_argument, 0, 'z'},
+                {"gap-extend-penalty",  required_argument, 0, 'e'},
+                {"repeat-gap-extend-penalty",  required_argument, 0, 'r'},
+                {"print-alignment",  required_argument, 0, 'p'},
+                {"bandwidth", required_argument, 0, 'b'},
+                {"reverse-complement", no_argument, 0, 'R'},
+                {0, 0, 0, 0}
+            };
         int option_index = 0;
 
-        c = getopt_long (argc, argv, "hpzm:n:g:r:e:b:r:",
+        c = getopt_long (argc, argv, "hpRzm:n:g:r:e:b:r:",
                          long_options, &option_index);
 
-          if (c == -1)
+        if (c == -1)
             break;
  
-          switch (c)
-            {
-            case 0:
+        switch (c)
+        {
+        case 0:
             /* If this option set a flag, do nothing else now. */
             if (long_options[option_index].flag != 0)
-              break;
+                break;
             printf ("option %s", long_options[option_index].name);
             if (optarg)
-              printf (" with arg %s", optarg);
+                printf (" with arg %s", optarg);
             printf ("\n");
             break;
 
-          case 'm':
+        case 'R':
+            tryReverseComplement = true;
+            break;
+
+        case 'm':
             matchScore = atof(optarg);
             break;
  
-          case 'n':
+        case 'n':
             mismatchScore = atof(optarg);
             break;
  
-          case 'g':
+        case 'g':
             gapOpenPenalty = atof(optarg);
             break;
 
-	  case 'z':
- 	    entropyGapOpenPenalty = 1;
-	    break;
+        case 'z':
+            entropyGapOpenPenalty = 1;
+            break;
  
-	  case 'r':
-	    useRepeatGapExtendPenalty = true;
-	    repeatGapExtendPenalty = atof(optarg);
-	    break;
+        case 'r':
+            useRepeatGapExtendPenalty = true;
+            repeatGapExtendPenalty = atof(optarg);
+            break;
  
-          case 'e':
+        case 'e':
             gapExtendPenalty = atof(optarg);
             break;
 
-          case 'b':
+        case 'b':
             bandwidth = atoi(optarg);
             break;
 
-          case 'p':
+        case 'p':
             print_alignment = true;
             break;
  
-          case 'h':
+        case 'h':
             printSummary();
             exit(0);
             break;
  
-          case '?':
+        case '?':
             /* getopt_long already printed an error message. */
             printSummary();
             exit(1);
             break;
  
-          default:
+        default:
             abort ();
-          }
-      }
+        }
+    }
 
     /* Print any remaining command line arguments (not options). */
     if (optind == argc - 2) {
@@ -151,6 +197,8 @@ int main (int argc, char** argv) {
 
     float bestScore = 0;
 
+    bool alignedReverse = false;
+
     // create a new Smith-Waterman alignment object
     if (bandwidth > 0) {
         pair< pair<unsigned int, unsigned int>, pair<unsigned int, unsigned int> > hr;
@@ -162,15 +210,24 @@ int main (int argc, char** argv) {
         bsw.Align(referencePos, cigar, reference, query, hr);
     } else {
         CSmithWatermanGotoh sw(matchScore, mismatchScore, gapOpenPenalty, gapExtendPenalty);
-	if (useRepeatGapExtendPenalty)
-	    sw.EnableRepeatGapExtensionPenalty(repeatGapExtendPenalty);
-	if (entropyGapOpenPenalty > 0)
-	    sw.EnableEntropyGapPenalty(entropyGapOpenPenalty);
+        if (useRepeatGapExtendPenalty)
+            sw.EnableRepeatGapExtensionPenalty(repeatGapExtendPenalty);
+        if (entropyGapOpenPenalty > 0)
+            sw.EnableEntropyGapPenalty(entropyGapOpenPenalty);
         sw.Align(referencePos, cigar, reference, query);
-	bestScore = sw.BestScore;
+        bestScore = sw.BestScore;
+        if (tryReverseComplement) {
+            string queryRevC = reverseComplement(query);
+            sw.Align(referencePos, cigar, reference, query);
+            if (sw.BestScore > bestScore) {
+                alignedReverse = true;
+                bestScore = sw.BestScore;
+                query = queryRevC;
+            }
+        }
     }
  
-    printf("%s %3u %f\n", cigar.c_str(), referencePos, bestScore);
+    printf("%s %3u %f %s\n", cigar.c_str(), referencePos, bestScore, (alignedReverse ? "-" : "+"));
 
     // optionally print out the alignment
     if (print_alignment) {
@@ -180,32 +237,32 @@ int main (int argc, char** argv) {
         vector<pair<int, char> > cigarData;
         for (string::iterator c = cigar.begin(); c != cigar.end(); ++c) {
             switch (*c) {
-                case 'I':
-                    len = atoi(slen.c_str());
-                    slen.clear();
-                    cigarData.push_back(make_pair(len, *c));
-                    break;
-                case 'D':
-                    len = atoi(slen.c_str());
-                    alignmentLength += len;
-                    slen.clear();
-                    cigarData.push_back(make_pair(len, *c));
-                    break;
-                case 'M':
-                    len = atoi(slen.c_str());
-                    alignmentLength += len;
-                    slen.clear();
-                    cigarData.push_back(make_pair(len, *c));
-                    break;
-                case 'S':
-                    len = atoi(slen.c_str());
-                    slen.clear();
-                    cigarData.push_back(make_pair(len, *c));
-                    break;
-                default:
-                    len = 0;
-                    slen += *c;
-                    break;
+            case 'I':
+                len = atoi(slen.c_str());
+                slen.clear();
+                cigarData.push_back(make_pair(len, *c));
+                break;
+            case 'D':
+                len = atoi(slen.c_str());
+                alignmentLength += len;
+                slen.clear();
+                cigarData.push_back(make_pair(len, *c));
+                break;
+            case 'M':
+                len = atoi(slen.c_str());
+                alignmentLength += len;
+                slen.clear();
+                cigarData.push_back(make_pair(len, *c));
+                break;
+            case 'S':
+                len = atoi(slen.c_str());
+                slen.clear();
+                cigarData.push_back(make_pair(len, *c));
+                break;
+            default:
+                len = 0;
+                slen += *c;
+                break;
             }
         }
 
@@ -217,27 +274,27 @@ int main (int argc, char** argv) {
         for (vector<pair<int, char> >::iterator c = cigarData.begin(); c != cigarData.end(); ++c) {
             int len = c->first;
             switch (c->second) {
-                case 'I':
-                    gapped_ref.insert(refpos, string(len, '-'));
-                    readpos += len;
-		    refpos += len;
-                    break;
-                case 'D':
-                    gapped_query.insert(readpos, string(len, '-'));
-                    refpos += len;
-		    readpos += len;
-                    break;
-                case 'M':
-		    readpos += len;
-		    refpos += len;
-		    break;
-                case 'S':
-                    readpos += len;
-		    gapped_ref.insert(refpos, string(len, '*'));
-		    refpos += len;
-                    break;
-                default:
-                    break;
+            case 'I':
+                gapped_ref.insert(refpos, string(len, '-'));
+                readpos += len;
+                refpos += len;
+                break;
+            case 'D':
+                gapped_query.insert(readpos, string(len, '-'));
+                refpos += len;
+                readpos += len;
+                break;
+            case 'M':
+                readpos += len;
+                refpos += len;
+                break;
+            case 'S':
+                readpos += len;
+                gapped_ref.insert(refpos, string(len, '*'));
+                refpos += len;
+                break;
+            default:
+                break;
             }
         }
 
