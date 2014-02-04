@@ -9,7 +9,9 @@
 #include <string.h>
 #include <sstream>
 #include <string>
+extern "C" {
 #include "disorder.h"
+}
 #include "Repeats.h"
 #include "LeftAlign.h"
 
