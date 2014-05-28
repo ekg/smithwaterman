@@ -14,7 +14,8 @@ OBJECTS= $(SOURCES:.cpp=.o) disorder.o
 # ----------------
 
 CFLAGS=-Wall -O3
-LDFLAGS=-Wl,-s
+# Note - passing -s to the clang linker in Xcode 5.1.1 cause the build to fail
+#LDFLAGS=-Wl,-s
 #CFLAGS=-g
 PROGRAM=smithwaterman
 LIBS=
