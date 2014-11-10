@@ -19,12 +19,15 @@ LDFLAGS=-Wl,-s
 PROGRAM=smithwaterman
 LIBS=
 
-all: $(PROGRAM)
+all: $(PROGRAM) sw.o
 
 .PHONY: all
 
 disorder.o: disorder.c disorder.h
 	g++ -c -o disorder.o disorder.c
+
+sw.o: $(OBJECTS)
+	ld -r $(OBJECTS) -o sw.o
 
 $(PROGRAM): $(OBJECTS)
 	@echo "  * linking $(PROGRAM)"
