@@ -8,6 +8,7 @@
 # ----------------------------------
 SOURCES= smithwaterman.cpp BandedSmithWaterman.cpp SmithWatermanGotoh.cpp Repeats.cpp LeftAlign.cpp IndelAllele.cpp
 OBJECTS= $(SOURCES:.cpp=.o) disorder.o
+OBJECTS_NO_MAIN= disorder.o BandedSmithWaterman.o SmithWatermanGotoh.o Repeats.o LeftAlign.o IndelAllele.o
 
 # ----------------
 # compiler options
@@ -26,8 +27,8 @@ all: $(PROGRAM) sw.o
 disorder.o: disorder.c disorder.h
 	g++ -c -o disorder.o disorder.c
 
-sw.o: $(OBJECTS)
-	ld -r $(OBJECTS) -o sw.o
+sw.o: $(OBJECTS_NO_MAIN)
+	ld -r $(OBJECTS_NO_MAIN) -o sw.o
 
 $(PROGRAM): $(OBJECTS)
 	@echo "  * linking $(PROGRAM)"
