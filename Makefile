@@ -32,7 +32,7 @@ sw.o: $(OBJECTS_NO_MAIN)
 
 $(PROGRAM): $(OBJECTS)
 	@echo "  * linking $(PROGRAM)"
-	@$(CXX) $(LDFLAGS) $(CFLAGS) -o $@ $^ $(LIBS)
+	@$(CXX) $(LDFLAGS) $(CFLAGS) -o $@ $^ -I.
 
 .PHONY: clean
 
