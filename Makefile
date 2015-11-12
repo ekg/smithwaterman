@@ -14,25 +14,45 @@ OBJECTS_NO_MAIN= disorder.o BandedSmithWaterman.o SmithWatermanGotoh.o Repeats.o
 # compiler options
 # ----------------
 
-CFLAGS=-Wall -O3
-LDFLAGS=-Wl,-s
+CFLAGS:= -O3
+LDFLAGS:=-Wl,-s
 #CFLAGS=-g
-PROGRAM=smithwaterman
+EXE:=smithwaterman
 LIBS=
 
-all: $(PROGRAM) sw.o
+all: $(EXE) sw.o
 
 .PHONY: all
 
-disorder.o: disorder.c disorder.h
-	g++ -c -o disorder.o disorder.c
+libsw.a: smithwaterman.o BandedSmithWaterman.o SmithWatermanGotoh.o LeftAlign.o Repeats.o IndelAllele.o disorder.o
+	ar rs $@ smithwaterman.o d SmithWatermanGotoh.o disorder.o BandedSmithWaterman.o LeftAlign.o Repeats.o IndelAllele.o
 
-sw.o: $(OBJECTS_NO_MAIN)
-	ld -r $(OBJECTS_NO_MAIN) -o sw.o
+sw.o:  BandedSmithWaterman.o SmithWatermanGotoh.o LeftAlign.o Repeats.o IndelAllele.o disorder.o
+	ld -r $^ -o sw.o -L.
+	#$(CXX) $(CFLAGS) -c -o smithwaterman.cpp $(OBJECTS_NO_MAIN) -I.
 
-$(PROGRAM): $(OBJECTS)
-	@echo "  * linking $(PROGRAM)"
-	@$(CXX) $(LDFLAGS) $(CFLAGS) -o $@ $^ $(LIBS)
+### @$(CXX) $(LDFLAGS) $(CFLAGS) -o $@ $^ -I.
+$(EXE): smithwaterman.o BandedSmithWaterman.o SmithWatermanGotoh.o disorder.o LeftAlign.o Repeats.o IndelAllele.o
+	$(CXX) $(CFLAGS) $^ -I. -o $@
+
+#smithwaterman: $(OBJECTS)
+#	$(CXX) $(CFLAGS) -o $@ $< -I.
+
+smithwaterman.o: smithwaterman.cpp disorder.o
+	$(CXX) $(CFLAGS) -c -o $@ smithwaterman.cpp -I.
+
+disorder.o: disorder.cpp disorder.h
+	$(CXX) $(CFLAGS) -c -o $@ $< -I.
+BandedSmithWaterman.o: BandedSmithWaterman.cpp BandedSmithWaterman.h
+	$(CXX) $(CFLAGS) -c -o $@ $< -I.
+SmithWatermanGotoh.o: SmithWatermanGotoh.cpp SmithWatermanGotoh.h disorder.o
+	$(CXX) $(CFLAGS) -c -o $@ $< -I.
+Repeats.o: Repeats.cpp
+	$(CXX) $(CFLAGS) -c -o $@ $< -I.
+LeftAlign.o: LeftAlign.cpp
+	$(CXX) $(CFLAGS) -c -o $@ $< -I.
+IndelAllele.o: IndelAllele.cpp
+	$(CXX) $(CFLAGS) -c -o $@ $< -I.
 
 .PHONY: clean
 
