@@ -121,8 +121,7 @@ get_token_frequencies(char* buf,
  *
  *    http://php.net/manual/en/control-structures.foreach.php
  */
-float
-shannon_H(char* buf, 
+float shannon_H(char* buf, 
 	  long long length)
 {
   int i = 0;
