@@ -14,18 +14,23 @@ OBJECTS_NO_MAIN= disorder.o BandedSmithWaterman.o SmithWatermanGotoh.o Repeats.o
 # compiler options
 # ----------------
 
-CFLAGS:= -O3
-LDFLAGS:=-Wl,-s
-#CFLAGS=-g
-EXE:=smithwaterman
+# Use ?= to allow overriding from the env or command-line
+CXX?=		c++
+CXXFLAGS?=	-O3
+OBJ?=		sw.o
+
+# I don't think := is useful here, since there is nothing to expand
+LDFLAGS:=	-Wl,-s
+#CXXFLAGS=-g
+EXE:=		smithwaterman
 LIBS=
 
-all: $(EXE) sw.o
+all: $(EXE) $(OBJ)
 
 .PHONY: all
 
 libsw.a: smithwaterman.o BandedSmithWaterman.o SmithWatermanGotoh.o LeftAlign.o Repeats.o IndelAllele.o disorder.o
-	ar rs $@ smithwaterman.o d SmithWatermanGotoh.o disorder.o BandedSmithWaterman.o LeftAlign.o Repeats.o IndelAllele.o
+	ar rs $@ smithwaterman.o SmithWatermanGotoh.o disorder.o BandedSmithWaterman.o LeftAlign.o Repeats.o IndelAllele.o
 
 sw.o:  BandedSmithWaterman.o SmithWatermanGotoh.o LeftAlign.o Repeats.o IndelAllele.o disorder.o
 	ld -r $^ -o sw.o -L.
@@ -36,23 +41,23 @@ $(EXE): smithwaterman.o BandedSmithWaterman.o SmithWatermanGotoh.o disorder.o Le
 	$(CXX) $(CFLAGS) $^ -I. -o $@
 
 #smithwaterman: $(OBJECTS)
-#	$(CXX) $(CFLAGS) -o $@ $< -I.
+#	$(CXX) $(CXXFLAGS) -o $@ $< -I.
 
 smithwaterman.o: smithwaterman.cpp disorder.o
-	$(CXX) $(CFLAGS) -c -o $@ smithwaterman.cpp -I.
+	$(CXX) $(CXXFLAGS) -c -o $@ smithwaterman.cpp -I.
 
 disorder.o: disorder.cpp disorder.h
-	$(CXX) $(CFLAGS) -c -o $@ $< -I.
+	$(CXX) $(CXXFLAGS) -c -o $@ $< -I.
 BandedSmithWaterman.o: BandedSmithWaterman.cpp BandedSmithWaterman.h
-	$(CXX) $(CFLAGS) -c -o $@ $< -I.
+	$(CXX) $(CXXFLAGS) -c -o $@ $< -I.
 SmithWatermanGotoh.o: SmithWatermanGotoh.cpp SmithWatermanGotoh.h disorder.o
-	$(CXX) $(CFLAGS) -c -o $@ $< -I.
+	$(CXX) $(CXXFLAGS) -c -o $@ $< -I.
 Repeats.o: Repeats.cpp
-	$(CXX) $(CFLAGS) -c -o $@ $< -I.
+	$(CXX) $(CXXFLAGS) -c -o $@ $< -I.
 LeftAlign.o: LeftAlign.cpp
-	$(CXX) $(CFLAGS) -c -o $@ $< -I.
+	$(CXX) $(CXXFLAGS) -c -o $@ $< -I.
 IndelAllele.o: IndelAllele.cpp
-	$(CXX) $(CFLAGS) -c -o $@ $< -I.
+	$(CXX) $(CXXFLAGS) -c -o $@ $< -I.
 
 .PHONY: clean
 
