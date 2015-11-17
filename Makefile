@@ -29,7 +29,7 @@ all: $(EXE) $(OBJ)
 .PHONY: all
 
 libsw.a: smithwaterman.o BandedSmithWaterman.o SmithWatermanGotoh.o LeftAlign.o Repeats.o IndelAllele.o disorder.o
-	ar rs $@ smithwaterman.o d SmithWatermanGotoh.o disorder.o BandedSmithWaterman.o LeftAlign.o Repeats.o IndelAllele.o
+	ar rs $@ smithwaterman.o SmithWatermanGotoh.o disorder.o BandedSmithWaterman.o LeftAlign.o Repeats.o IndelAllele.o
 
 sw.o:  BandedSmithWaterman.o SmithWatermanGotoh.o LeftAlign.o Repeats.o IndelAllele.o disorder.o
 	ld -r $^ -o sw.o -L.
