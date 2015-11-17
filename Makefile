@@ -19,6 +19,7 @@ CXX?=		c++
 CXXFLAGS?=	-O3
 OBJ?=		sw.o
 
+# I don't think := is useful here, since there is nothing to expand
 LDFLAGS:=	-Wl,-s
 #CXXFLAGS=-g
 EXE:=		smithwaterman
