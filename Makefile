@@ -6,6 +6,7 @@
 # ----------------------------------
 # define our source and object files
 # ----------------------------------
+
 SOURCES= smithwaterman.cpp BandedSmithWaterman.cpp SmithWatermanGotoh.cpp Repeats.cpp LeftAlign.cpp IndelAllele.cpp
 OBJECTS= $(SOURCES:.cpp=.o) disorder.o
 OBJECTS_NO_MAIN= disorder.o BandedSmithWaterman.o SmithWatermanGotoh.o Repeats.o LeftAlign.o IndelAllele.o
@@ -14,21 +15,29 @@ OBJECTS_NO_MAIN= disorder.o BandedSmithWaterman.o SmithWatermanGotoh.o Repeats.o
 # compiler options
 # ----------------
 
-# Use ?= to allow overriding from the env or command-line
-CXX?=		c++
-CXXFLAGS?=	-O3
-#CXXFLAGS+=	-g
+# Use ?= to allow overriding from the env or command-line.
+# Many of these variables are automatically set by package managers
+# and can easily be controlled by the package maintainer.
 
-# I don't think := is useful here, since there is nothing to expand
+CXX ?=		c++
+CXXFLAGS ?=	-O3
+DESTDIR ?=	stage
+PREFIX ?=	/usr/local
+STRIP ?=	strip
+INSTALL ?=	install -c
+MKDIR ?=	mkdir -p
+AR ?=		ar
+
+# FIXME: I don't think := is useful here, since there is nothing to expand
 LDFLAGS:=	-Wl,-s
-EXE:=		smithwaterman
-LIBS=
+BIN:=		smithwaterman
+LIB =		libsw.a
 
-all: $(EXE) libsw.a
+all: $(BIN) $(LIB)
 
 .PHONY: all
 
-libsw.a: $(OBJECTS_NO_MAIN)
+$(LIB): $(OBJECTS_NO_MAIN)
 	ar rs $@ $(OBJECTS_NO_MAIN)
 
 sw.o:  $(OBJECTS_NO_MAIN)
@@ -36,7 +45,7 @@ sw.o:  $(OBJECTS_NO_MAIN)
 	@#$(CXX) $(CFLAGS) -c -o smithwaterman.cpp $(OBJECTS_NO_MAIN) -I.
 
 ### @$(CXX) $(LDFLAGS) $(CFLAGS) -o $@ $^ -I.
-$(EXE): $(OBJECTS)
+$(BIN): $(OBJECTS)
 	$(CXX) $(CFLAGS) $^ -I. -o $@
 
 #smithwaterman: $(OBJECTS)
@@ -63,8 +72,19 @@ LeftAlign.o: LeftAlign.cpp
 IndelAllele.o: IndelAllele.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< -I.
 
+install: all
+	$(MKDIR) $(DESTDIR)$(PREFIX)/bin
+	$(MKDIR) $(DESTDIR)$(PREFIX)/include/smithwaterman
+	$(MKDIR) $(DESTDIR)$(PREFIX)/lib
+	$(INSTALL) $(BIN) $(DESTDIR)$(PREFIX)/bin
+	$(INSTALL) *.h $(DESTDIR)$(PREFIX)/include/smithwaterman
+	$(INSTALL) $(LIB) $(DESTDIR)$(PREFIX)/lib
+
+install-strip: install
+	$(STRIP) $(DESTDIR)$(PREFIX)/bin/$(BIN)
+
 .PHONY: clean
 
 clean:
 	@echo "Cleaning up."
-	@rm -f *.o $(PROGRAM) *~ *.a
+	@rm -rf $(BIN) $(LIB) $(OBJECTS) $(DESTDIR)
