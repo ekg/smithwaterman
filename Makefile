@@ -24,7 +24,7 @@ LDFLAGS:=	-Wl,-s
 EXE:=		smithwaterman
 LIBS=
 
-all: $(EXE) sw.o libsw.a
+all: $(EXE) libsw.a
 
 .PHONY: all
 
