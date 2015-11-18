@@ -17,27 +17,26 @@ OBJECTS_NO_MAIN= disorder.o BandedSmithWaterman.o SmithWatermanGotoh.o Repeats.o
 # Use ?= to allow overriding from the env or command-line
 CXX?=		c++
 CXXFLAGS?=	-O3
-OBJ?=		sw.o
+#CXXFLAGS+=	-g
 
 # I don't think := is useful here, since there is nothing to expand
 LDFLAGS:=	-Wl,-s
-#CXXFLAGS=-g
 EXE:=		smithwaterman
 LIBS=
 
-all: $(EXE) $(OBJ)
+all: $(EXE) sw.o libsw.a
 
 .PHONY: all
 
-libsw.a: smithwaterman.o BandedSmithWaterman.o SmithWatermanGotoh.o LeftAlign.o Repeats.o IndelAllele.o disorder.o
-	ar rs $@ smithwaterman.o SmithWatermanGotoh.o disorder.o BandedSmithWaterman.o LeftAlign.o Repeats.o IndelAllele.o
+libsw.a: $(OBJECTS_NO_MAIN)
+	ar rs $@ $(OBJECTS_NO_MAIN)
 
-sw.o:  BandedSmithWaterman.o SmithWatermanGotoh.o LeftAlign.o Repeats.o IndelAllele.o disorder.o
+sw.o:  $(OBJECTS_NO_MAIN)
 	ld -r $^ -o sw.o -L.
-	#$(CXX) $(CFLAGS) -c -o smithwaterman.cpp $(OBJECTS_NO_MAIN) -I.
+	@#$(CXX) $(CFLAGS) -c -o smithwaterman.cpp $(OBJECTS_NO_MAIN) -I.
 
 ### @$(CXX) $(LDFLAGS) $(CFLAGS) -o $@ $^ -I.
-$(EXE): smithwaterman.o BandedSmithWaterman.o SmithWatermanGotoh.o disorder.o LeftAlign.o Repeats.o IndelAllele.o
+$(EXE): $(OBJECTS)
 	$(CXX) $(CFLAGS) $^ -I. -o $@
 
 #smithwaterman: $(OBJECTS)
@@ -48,14 +47,19 @@ smithwaterman.o: smithwaterman.cpp disorder.o
 
 disorder.o: disorder.cpp disorder.h
 	$(CXX) $(CXXFLAGS) -c -o $@ $< -I.
+
 BandedSmithWaterman.o: BandedSmithWaterman.cpp BandedSmithWaterman.h
 	$(CXX) $(CXXFLAGS) -c -o $@ $< -I.
+
 SmithWatermanGotoh.o: SmithWatermanGotoh.cpp SmithWatermanGotoh.h disorder.o
 	$(CXX) $(CXXFLAGS) -c -o $@ $< -I.
+
 Repeats.o: Repeats.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< -I.
+
 LeftAlign.o: LeftAlign.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< -I.
+
 IndelAllele.o: IndelAllele.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< -I.
 
@@ -63,4 +67,4 @@ IndelAllele.o: IndelAllele.cpp
 
 clean:
 	@echo "Cleaning up."
-	@rm -f *.o $(PROGRAM) *~
+	@rm -f *.o $(PROGRAM) *~ *.a
