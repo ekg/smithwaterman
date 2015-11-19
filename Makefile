@@ -21,6 +21,7 @@ OBJECTS_NO_MAIN= disorder.o BandedSmithWaterman.o SmithWatermanGotoh.o Repeats.o
 
 CXX ?=		c++
 CXXFLAGS ?=	-O3
+CXXFLAGS +=	-fPIC
 DESTDIR ?=	stage
 PREFIX ?=	/usr/local
 STRIP ?=	strip
@@ -32,13 +33,17 @@ AR ?=		ar
 LDFLAGS:=	-Wl,-s
 BIN:=		smithwaterman
 LIB =		libsw.a
+SLIB =		libsw.so
 
-all: $(BIN) $(LIB)
+all: $(BIN) $(LIB) $(SLIB)
 
 .PHONY: all
 
 $(LIB): $(OBJECTS_NO_MAIN)
 	ar rs $@ $(OBJECTS_NO_MAIN)
+
+$(SLIB): $(OBJECTS_NO_MAIN)
+	${CXX} -shared -Wl,-soname,$(SLIB).1 -o $(SLIB) $(OBJECTS_NO_MAIN)
 
 sw.o:  $(OBJECTS_NO_MAIN)
 	ld -r $^ -o sw.o -L.
@@ -78,13 +83,13 @@ install: all
 	$(MKDIR) $(DESTDIR)$(PREFIX)/lib
 	$(INSTALL) $(BIN) $(DESTDIR)$(PREFIX)/bin
 	$(INSTALL) *.h $(DESTDIR)$(PREFIX)/include/smithwaterman
-	$(INSTALL) $(LIB) $(DESTDIR)$(PREFIX)/lib
+	$(INSTALL) $(LIB) $(SLIB) $(DESTDIR)$(PREFIX)/lib
 
 install-strip: install
-	$(STRIP) $(DESTDIR)$(PREFIX)/bin/$(BIN)
+	$(STRIP) $(DESTDIR)$(PREFIX)/bin/$(BIN) $(DESTDIR)$(PREFIX)/lib/$(SLIB)
 
 .PHONY: clean
 
 clean:
 	@echo "Cleaning up."
-	@rm -rf $(BIN) $(LIB) $(OBJECTS) $(DESTDIR)
+	@rm -rf $(BIN) $(LIB) $(SLIB) $(OBJECTS) $(DESTDIR)
