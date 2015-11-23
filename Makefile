@@ -45,7 +45,7 @@ all: $(BIN) $(LIB) $(SLIB) sw.o
 .PHONY: all
 
 $(LIB): $(OBJECTS_NO_MAIN)
-	ar rs $@ $(OBJECTS_NO_MAIN)
+	$(AR) rs $@ $(OBJECTS_NO_MAIN)
 
 $(SLIB): $(OBJECTS_NO_MAIN)
 	$(CXX) -shared -Wl,-soname,$(SLIB) -o $(SLIB) $(OBJECTS_NO_MAIN)
