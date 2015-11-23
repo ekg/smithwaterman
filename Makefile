@@ -38,8 +38,7 @@ LDFLAGS:=	-Wl,-s
 BIN =		smithwaterman
 LIB =		libsw.a
 SOVERSION =	1
-SLIB_BARE =	libsw.so
-SLIB =		$(SLIB_BARE).$(SOVERSION)
+SLIB =		libsw.so.$(SOVERSION)
 
 all: $(BIN) $(LIB) $(SLIB) sw.o
 
@@ -49,8 +48,7 @@ $(LIB): $(OBJECTS_NO_MAIN)
 	ar rs $@ $(OBJECTS_NO_MAIN)
 
 $(SLIB): $(OBJECTS_NO_MAIN)
-	$(CXX) -shared -Wl,-soname,$(SLIB) \
-		-o $(SLIB) $(OBJECTS_NO_MAIN)
+	$(CXX) -shared -Wl,-soname,$(SLIB) -o $(SLIB) $(OBJECTS_NO_MAIN)
 
 sw.o:  $(OBJECTS_NO_MAIN)
 	ld -r $^ -o sw.o -L.
@@ -91,8 +89,6 @@ install: all
 	$(INSTALL) $(BIN) $(DESTDIR)$(PREFIX)/bin
 	$(INSTALL) *.h $(DESTDIR)$(PREFIX)/include/smithwaterman
 	$(INSTALL) $(LIB) $(SLIB) $(DESTDIR)$(PREFIX)/lib
-	$(LN) -s $(DESTDIR)$(PREFIX)/lib/$(SLIB) \
-		$(DESTDIR)$(PREFIX)/lib/$(SLIB_BARE)
 
 install-strip: install
 	$(STRIP) $(DESTDIR)$(PREFIX)/bin/$(BIN) $(DESTDIR)$(PREFIX)/lib/$(SLIB)
@@ -101,4 +97,4 @@ install-strip: install
 
 clean:
 	@echo "Cleaning up."
-	@rm -rf $(BIN) $(LIB) $(SLIB) $(SLIB_BARE) $(OBJECTS) $(DESTDIR)
+	@rm -rf $(BIN) $(LIB) $(SLIB) $(OBJECTS) $(DESTDIR)
