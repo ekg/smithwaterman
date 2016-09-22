@@ -165,14 +165,49 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 
         steppos = indel.position - 1;
         readsteppos = indel.readPosition - 1;
-        while (steppos >= 0 && readsteppos >= 0
-               && querySequence.at(readsteppos) == referenceSequence.at(steppos)
-	       && referenceSequence.size() > steppos + indel.length
-	       && indel.sequence.at((int) indel.sequence.size() - 1) == referenceSequence.at(steppos + indel.length) // are the exchanged bases going to match wrt. the reference?
-               && querySequence.at(readsteppos) == indel.sequence.at((int) indel.sequence.size() - 1)
-               && (id == indels.begin()
-                   || (previous->insertion && indel.position - 1 >= previous->position)
-                   || (!previous->insertion && indel.position - 1 >= previous->position + previous->length))) {
+
+
+        while (true){
+            if (steppos < 0 || readsteppos < 0) break;
+            if (referenceSequence.size() <= steppos + indel.length) break;
+          
+            char refStart = referenceSequence.at(steppos);
+            char refEnd;
+
+            char indelStart = querySequence.at(readsteppos);
+            char indelEnd;
+
+            if (indel.insertion){
+              // for insertions we make sure that the first and last base of the insertion match the
+              // reference at the begining of the insertion
+
+              // gtgtG-----t           gtgt-----Gt
+              //     ^     
+              // gtgtGactgGt   ---->   gtgtGactgGt
+ 
+              refEnd = refStart;//there is only one ref base in the window
+              indelEnd = indel.sequence.at((int)indel.sequence.size() - 1);
+            } else {
+	      // delteions are the inverse, we need to match the end of the refernce at the deltion
+	      // with the deleted base
+
+	      // gtgtGactgGt   ---->   gtgtGactgGt
+	      //          ^  
+	      // gtgtG-----t           gtgt-----Gt
+	      refEnd = referenceSequence.at(steppos + indel.length);
+	      indelEnd = indelStart; //there is only one base in the window
+	    }
+	    
+	    // are the exchanged bases going to match wrt. the reference? 
+	    if (refStart != indelStart) break;
+	    if (refEnd != indelEnd) break;
+
+	    if (!  (id == indels.begin() 
+		    || (previous->insertion && indel.position - 1 >= previous->position) 
+		    || (!previous->insertion && indel.position - 1 >= previous->position + previous->length)))
+               break;
+
+
             if (debug) cerr << (indel.insertion ? "insertion " : "deletion ") << indel << " exchanging bases " << 1 << "bp left" << endl;
             indel.sequence = indel.sequence.at(indel.sequence.size() - 1) + indel.sequence.substr(0, indel.sequence.size() - 1);
             indel.position -= 1;
