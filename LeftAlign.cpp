@@ -676,7 +676,7 @@ bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequen
 	if (debug) cerr << indel << " " << *last << endl;
 	LEFTALIGN_DEBUG(indel << ",");
 	if ((id + 1) == newIndels.end()
-	    && (indel.insertion && indel.position == referenceSequence.size()
+	    && ((indel.insertion && indel.position == referenceSequence.size())
 		|| (!indel.insertion && indel.position + indel.length == referenceSequence.size()))
 	    ) {
 	    if (indel.insertion) {
