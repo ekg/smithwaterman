@@ -1,8 +1,5 @@
 #include "LeftAlign.h"
 
-//bool debug;
-#define VERBOSE_DEBUG
-
 // Attempts to left-realign all the indels represented by the alignment cigar.
 //
 // This is done by shifting all indels as far left as they can go without
@@ -24,8 +21,6 @@
 // In practice, we must call this function until the alignment is stabilized.
 //
 bool leftAlign(string& querySequence, string& cigar, string& baseReferenceSequence, int& offset, bool debug) {
-
-    debug = false;
 
     string referenceSequence = baseReferenceSequence.substr(offset);
 
@@ -782,14 +777,14 @@ int countMismatches(string& querySequence, string& cigar, string referenceSequen
 //
 bool stablyLeftAlign(string querySequence, string& cigar, string referenceSequence, int& offset, int maxiterations, bool debug) {
 
-    if (!leftAlign(querySequence, cigar, referenceSequence, offset)) {
+    if (!leftAlign(querySequence, cigar, referenceSequence, offset, debug)) {
 
         LEFTALIGN_DEBUG("did not realign" << endl);
         return true;
 
     } else {
 
-        while (leftAlign(querySequence, cigar, referenceSequence, offset) && --maxiterations > 0) {
+        while (leftAlign(querySequence, cigar, referenceSequence, offset, debug) && --maxiterations > 0) {
             LEFTALIGN_DEBUG("realigning ..." << endl);
         }
 
