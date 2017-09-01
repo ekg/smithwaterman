@@ -165,7 +165,7 @@ void CBandedSmithWaterman::Align(unsigned int& referenceAl, string& cigarAl, con
 		}
 
 		// replace the columnNum to the middle column in the Smith-Waterman matrix
-		// because mBandwidth is an odd number, everytime the following equation shifts a column (pluses 1).
+		// because mBandwidth is an odd number, every time the following equation shifts a column (pluses 1).
 		columnNum = columnNum - (mBandwidth / 2);
 	}
 	
